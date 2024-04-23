@@ -11,14 +11,10 @@ from multiprocessing import shared_memory
 class Renderer(multiprocessing.Process):
     def __init__(
         self,
-        width: int,
-        height: int,
         cam_left: str = "/tmp/cam1",
         cam_right: str = "/tmp/cam2"
     ):
         super().__init__()
-        self._width = width
-        self._height = height
         self._cam_left = cam_left
         self._cam_right = cam_right
 
@@ -76,5 +72,5 @@ class Renderer(multiprocessing.Process):
 # demo code to run this separately
 if __name__ == "__main__":
     # start device in desired mode
-    test_render = Renderer(width=2560, height=1440)
+    test_render = Renderer(cam_left="/tmp/cam1", cam_right="/tmp/cam2")
     test_render.start()
