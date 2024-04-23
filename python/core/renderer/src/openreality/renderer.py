@@ -8,49 +8,73 @@ from multiprocessing import shared_memory
 """
     Renderer program that takes image stream and creates renderer instance
 """
-class CameraStreamer(multiprocessing.Process):
+class Renderer(multiprocessing.Process):
     def __init__(
         self,
-        device: int, # 1 for /dev/video1
-        width: int = 1920,
-        height: int = 1080,
-        fps: float = 30
+        width: int,
+        height: int,
+        cam_left: str = "/tmp/cam1",
+        cam_right: str = "/tmp/cam2"
     ):
         super().__init__()
-        self._device = device
-        self._memory = f"/tmp/cam{device}"
         self._width = width
         self._height = height
-        self._fps = fps
+        self._cam_left = cam_left
+        self._cam_right = cam_right
+
+        # TODO: add programmatic camera characterisitics
+        self._cam_width = 1920
+        self._cam_height = 1080
+        self._cam_fps = 30
 
         # shared memory device
-        # TODO: make frame and shm parameters programmatic, 3*8 is color depth 24bit
-        self._gst = (
-            f"shmsrc socket-path={self._memory} ! " \
-            f"video/x-raw, format=BGR, width={self._width}, height={self._height}, pixel-aspect-ratio=1/1, framerate={self._fps}/1 ! "\
+        self._gst_left = (
+            f"shmsrc socket-path={self._cam_left} ! " \
+            f"video/x-raw, format=BGR, width={self._cam_width}, height={self._cam_height}, pixel-aspect-ratio=1/1, framerate={self._cam_fps}/1 ! "\
+            f"decodebin ! videoconvert ! appsink"
+        )
+
+        self._gst_right = (
+            f"shmsrc socket-path={self._cam_right} ! " \
+            f"video/x-raw, format=BGR, width={self._cam_width}, height={self._cam_height}, pixel-aspect-ratio=1/1, framerate={self._cam_fps}/1 ! "\
             f"decodebin ! videoconvert ! appsink"
         )
          
 
     def run(self):
         # create capture device
-        cap = cv2.VideoCapture(self._gst, cv2.CAP_GSTREAMER)
+        cap_left = cv2.VideoCapture(self._gst_left, cv2.CAP_GSTREAMER)
+        cap_right = cv2.VideoCapture(self._gst_right, cv2.CAP_GSTREAMER)
+
+        # create output device
+        cv2.namedWindow("render", cv2.WINDOW_NORMAL)
+        cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         # TODO: add proper handling
-        while(cap.isOpened()):
-            ret, frame = cap.read()
-            if ret:
-                cv2.imshow("Input via Gstreamer", frame)
+        while cap_left.isOpened() and cap_right.isOpened():
+            ret_left, frame_left = cap_left.read()
+            ret_right, frame_right = cap_right.read()
+            if ret_left and ret_right:
+                # rotate each image to show it on the vertically messed up screen
+                frame_left = cv2.rotate(frame_left, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                frame_right = cv2.rotate(frame_right, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+                # combine images in a vertical stack (use hstack for horizontal)
+                final_render = np.vstack((frame_right, frame_left))
+
+                # create final image on full screen
+                cv2.imshow("render", final_render)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
             else:
                 break
-        cap.release()
+        cap_left.release()
+        cap_right.release()
         cv2.destroyAllWindows()
 
 
 # demo code to run this separately
 if __name__ == "__main__":
     # start device in desired mode
-    test_cam = CameraStreamer(device=1)
-    test_cam.start()
+    test_render = Renderer(width=2560, height=1440)
+    test_render.start()
