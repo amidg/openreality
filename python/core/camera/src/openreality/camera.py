@@ -42,6 +42,10 @@ class Camera():
         self._cap.set(cv2.CAP_PROP_FPS, self._fps)
 
     @property
+    def device(self):
+        return self._device
+
+    @property
     def cap(self):
         return self._cap
 
@@ -116,18 +120,23 @@ class Capture(multiprocessing.Process):
             # get all frames
             for camera in self._cam_list:
                 if camera.cap.grab():
-                    ret, frame = cam.cap.retrieve(0)
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    ret, frame = camera.cap.retrieve(0)
+                    #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     # Flip frame if necessary
                     if self._rotation is not None:
                         frame = cv2.rotate(frame, self._rotation)
                     cam_frames.append(frame)
+
+                    # debug
+                    #cv2.imshow(f"cam{camera.device}", frame)
+                    #if cv2.waitKey(1) & 0xFF == ord('q'):
+                    #    break
                 else:
                     cam_ready = False
                     break
     
             # build buffer
-            buffer = np.vstack(tuple(frame for frame in cam_frames))
+            buffer = np.vstack(tuple(frame for frame in reversed(cam_frames)))
             np.copyto(frame_buffer, buffer)  # Copy frame to shared memory
             cam_frames = []
 

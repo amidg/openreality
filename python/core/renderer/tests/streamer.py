@@ -11,14 +11,13 @@ from multiprocessing import shared_memory
 class CameraStreamer(multiprocessing.Process):
     def __init__(
         self,
-        device: int, # 1 for /dev/video1
-        width: int = 1920,
+        memmap: str,
+        width: int = 3840,
         height: int = 1080,
         fps: float = 30
     ):
         super().__init__()
-        self._device = device
-        self._memory = f"cam{device}"
+        self._memory = memmap
         self._width = width
         self._height = height
         self._fps = fps
@@ -34,7 +33,7 @@ class CameraStreamer(multiprocessing.Process):
 
         # read shared memory device
         while True:
-            cv2.imshow(f"Camera {self._device}", self._frame)
+            cv2.imshow(f"Camera", self._frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
@@ -45,5 +44,5 @@ class CameraStreamer(multiprocessing.Process):
 # demo code to run this separately
 if __name__ == "__main__":
     # start device in desired mode
-    test_cam = CameraStreamer(device=0)
+    test_cam = CameraStreamer(memmap="camera")
     test_cam.start()
