@@ -2,7 +2,7 @@ import argparse
 import cv2
 import numpy as np
 import os
-from time import time
+import time
 
 # multiprocessing
 import multiprocessing
@@ -36,7 +36,8 @@ class Camera():
 
         # OpenCV capture parameters
         self._cap = cv2.VideoCapture(self._device)
-        self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+        #self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+        self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'XVID'))
         self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
         self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height)
         self._cap.set(cv2.CAP_PROP_FPS, self._fps)
@@ -77,6 +78,10 @@ class Capture(multiprocessing.Process):
             except AssertionError:
                 # TODO: add logger handler
                 print(f"Incorrect rotation requested {rotation}: must be cv2.ROTATE_XX_YY type")
+        # time
+        self._ctime = 0
+        self._ptime = 0
+        self._fps = 0
 
     def run(self):
         # check if all cameras are ready
@@ -113,6 +118,10 @@ class Capture(multiprocessing.Process):
             buffer=shm.buf
         )
 
+        # debug
+        #cv2.namedWindow("render", cv2.WINDOW_NORMAL)
+        #cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
         # stream video
         # TODO: add handler when closed
         cam_frames: List[np.ndarray] = []
@@ -126,11 +135,6 @@ class Capture(multiprocessing.Process):
                     if self._rotation is not None:
                         frame = cv2.rotate(frame, self._rotation)
                     cam_frames.append(frame)
-
-                    # debug
-                    #cv2.imshow(f"cam{camera.device}", frame)
-                    #if cv2.waitKey(1) & 0xFF == ord('q'):
-                    #    break
                 else:
                     cam_ready = False
                     break
@@ -139,6 +143,19 @@ class Capture(multiprocessing.Process):
             buffer = np.vstack(tuple(frame for frame in reversed(cam_frames)))
             np.copyto(frame_buffer, buffer)  # Copy frame to shared memory
             cam_frames = []
+
+            # debug
+            #print(buffer.shape)
+            #cv2.imshow("render", buffer)
+            #if cv2.waitKey(1) & 0xFF == ord('q'):
+            #    break
+
+            # calculate fps
+            self._ctime = time.time()
+            self._fps = 1/(self._ctime-self._ptime)
+            self._ptime = self._ctime
+            print(self._fps)
+
 
         # stop opencv stream
         for cam in self._cam_list:
@@ -150,8 +167,8 @@ class Capture(multiprocessing.Process):
 # demo code to run this separately
 if __name__ == "__main__":
     # start create list of cameras
-    cam_left = Camera(device=0)
-    cam_right = Camera(device=2)
+    cam_left = Camera(device=3)
+    cam_right = Camera(device=0)
     cameras = [cam_left, cam_right]
 
     # create capture session

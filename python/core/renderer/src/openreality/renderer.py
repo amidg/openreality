@@ -12,8 +12,8 @@ class Renderer(multiprocessing.Process):
     def __init__(
         self,
         memmap: str = "camera",
-        buf_width: int = 3840,
-        buf_height: int = 1080,
+        buf_width: int = 1280,
+        buf_height: int = 480,
         buf_depth: int = 3
     ):
         super().__init__()
