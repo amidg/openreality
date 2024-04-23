@@ -6,7 +6,7 @@ import multiprocessing
 from multiprocessing import shared_memory
 
 """
-    Demo Streamer class from the shared memory buffer.
+    Renderer program that takes image stream and creates renderer instance
 """
 class CameraStreamer(multiprocessing.Process):
     def __init__(
