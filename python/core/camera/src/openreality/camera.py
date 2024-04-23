@@ -85,11 +85,8 @@ class Camera(multiprocessing.Process):
         else:
             exit()
 
-        print(frame_shared.shape)
-        print(frame_shared.nbytes)
-        print(frame_shared.dtype)
-
         # stream video
+        # TODO: add handler when closed
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
@@ -100,19 +97,6 @@ class Camera(multiprocessing.Process):
                 frame = cv2.rotate(frame, self._rotation)
             np.copyto(frame_shared, frame)  # Copy frame to shared memory
 
-        # stream image
-        # TODO: add proper handling
-        #while cap.isOpened():
-        #    ret, frame = cap.read()
-        #    if ret is True:
-        #        # Flip frame if necessary
-        #        if self._rotation is not None:
-        #            frame = cv2.rotate(frame, self._rotation)
-        #        # write to shared memory
-        #        self._frame[:] = frame[:]
-        #    else:
-        #        # TODO: logging handler
-        #        print("camera capture failed")
         # stop opencv stream
         cap.release()
         shm.close()
@@ -124,5 +108,5 @@ if __name__ == "__main__":
     # start device in desired mode
     test_cam_left = Camera(device=0, rotation=cv2.ROTATE_90_CLOCKWISE)
     test_cam_left.start()
-    #test_cam_right = Camera(device=1)
-    #test_cam_right.start()
+    test_cam_right = Camera(device=1, rotation=cv2.ROTATE_90_CLOCKWISE)
+    test_cam_right.start()
