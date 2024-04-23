@@ -27,7 +27,7 @@ class Camera(multiprocessing.Process):
     ):
         super().__init__()
         self._device = device
-        self._memory = f"cam{device}"
+        self._memory = f"/tmp/cam{device}"
         self._width = width
         self._height = height
         self._fps = fps
@@ -43,8 +43,7 @@ class Camera(multiprocessing.Process):
 
         # shared memory device
         # TODO: make frame and shm parameters programmatic, 3*8 is color depth 24bit
-        self._shm = shared_memory.SharedMemory(create=True, name=self._memory, size=int(self._width*self._height*3*8))
-        self._frame = np.ndarray((self._height, self._width, 3), dtype=np.dtypes.UInt8DType, buffer=self._shm.buf)
+        self._gst_cmd = f"appsrc ! videoconvert ! shmsink socket-path={self._memory} sync=true wait-for-connection=false"
          
 
     def run(self):
@@ -53,6 +52,9 @@ class Camera(multiprocessing.Process):
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height)
         cap.set(cv2.CAP_PROP_FPS, self._fps)
+
+        # shared device
+        shm = cv2.VideoWriter(self._gst_cmd, 0, self._fps, (self._width, self._height), True)
 
         # check if device is opened
         # TODO: add proper error checking
@@ -70,20 +72,16 @@ class Camera(multiprocessing.Process):
                 if self._rotation is not None:
                     frame = cv2.rotate(frame, self._rotation)
                 # write to shared memory
-                self._frame[:] = frame[:]
+                shm.write(frame)
             else:
                 # TODO: logging handler
                 print("camera capture failed")
         # stop opencv stream
         cap.release()
 
-        # stop shared memory access
-        self._shm.close()
-        self._shm.unlink()
-
         
 # demo code to run this separately
 if __name__ == "__main__":
     # start device in desired mode
-    test_cam = Camera(device=0)
+    test_cam = Camera(device=1)
     test_cam.start()
