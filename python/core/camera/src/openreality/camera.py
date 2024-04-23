@@ -40,28 +40,6 @@ class Camera(multiprocessing.Process):
                 # TODO: add logger handler
                 print(f"Incorrect rotation requested {rotation}: must be cv2.ROTATE_XX_YY type")
 
-        # shared memory device
-        # TODO: make frame and shm parameters programmatic, 3*8 is color depth 24bit
-        #self._shm = shared_memory.SharedMemory(
-        #    create=True,
-        #    name=self._memory,
-        #    size=int(self._width*self._height*3*8)
-        #)
-        #if self._rotation == cv2.ROTATE_90_CLOCKWISE or self._rotation == cv2.ROTATE_90_COUNTERCLOCKWISE:
-        #    self._frame = np.ndarray(
-        #        (self._width, self._height, 3),
-        #        dtype=np.dtypes.UInt8DType,
-        #        buffer=self._shm.buf
-        #    )
-        #else:
-        #    self._frame = np.ndarray(
-        #        (self._height, self._width, 3),
-        #        dtype=np.dtypes.UInt8DType,
-        #        buffer=self._shm.buf
-        #    )
-        ## ready to go
-        #print(f"Shared Memory is ready @ {self._shm.name}")
-
     def run(self):
         # create capture device
         cap = cv2.VideoCapture(self._device, cv2.CAP_V4L2)
