@@ -26,6 +26,10 @@ class DemoDualCamera(multiprocessing.Process):
         cap_right.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height)
         cap_right.set(cv2.CAP_PROP_FPS, self._fps)
 
+        # render video
+        cv2.namedWindow("render", cv2.WINDOW_NORMAL)
+        cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
         # stream image
         while cap_left.isOpened() and cap_right.isOpened():
             # Get the frame
