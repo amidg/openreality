@@ -1,0 +1,22 @@
+[project]
+name = "camera_openreality"
+version = "0.0.1"
+authors = [
+  { name="Dmitrii Gusev", email="amidg4x4dima@gmail.com" },
+]
+description = "Handler of the camera stream into the shm device"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GPL-3",
+    "Operating System :: Linux",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "opencv-contrib-python==4.9.0.80"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/pypa/sampleproject"
+Issues = "https://github.com/pypa/sampleproject/issues"
