@@ -18,39 +18,32 @@ class CameraStreamer(multiprocessing.Process):
     ):
         super().__init__()
         self._device = device
-        self._memory = f"/tmp/cam{device}"
+        self._memory = f"cam{device}"
         self._width = width
         self._height = height
         self._fps = fps
 
-        # shared memory device
-        # TODO: make frame and shm parameters programmatic, 3*8 is color depth 24bit
-        self._gst = (
-            f"shmsrc socket-path={self._memory} ! " \
-            f"video/x-raw, format=BGR, width={self._width}, height={self._height}, pixel-aspect-ratio=1/1, framerate={self._fps}/1 ! "\
-            f"decodebin ! videoconvert ! appsink"
-        )
-         
-
     def run(self):
-        # create capture device
-        cap = cv2.VideoCapture(self._gst, cv2.CAP_GSTREAMER)
+        # shared memory device
+        self._shm = shared_memory.SharedMemory(name=self._memory, create=False)
+        self._frame = np.ndarray(
+            (self._width, self._height, 3),
+            dtype="uint8",
+            buffer=self._shm.buf
+        )
 
-        # TODO: add proper handling
-        while(cap.isOpened()):
-            ret, frame = cap.read()
-            if ret:
-                cv2.imshow("Input via Gstreamer", frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-            else:
+        # read shared memory device
+        while True:
+            cv2.imshow(f"Camera {self._device}", self._frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
-        cap.release()
-        cv2.destroyAllWindows()
 
+        # close shared memory
+        self._shm.close()
+        self._shm.unlink()
 
 # demo code to run this separately
 if __name__ == "__main__":
     # start device in desired mode
-    test_cam = CameraStreamer(device=1)
+    test_cam = CameraStreamer(device=0)
     test_cam.start()
