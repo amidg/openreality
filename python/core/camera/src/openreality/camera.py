@@ -83,7 +83,7 @@ class Camera(multiprocessing.Process):
 # demo code to run this separately
 if __name__ == "__main__":
     # start device in desired mode
-    test_cam_left = Camera(device=1)
-    test_cam_right = Camera(device=2)
+    test_cam_left = Camera(device=0)
+    test_cam_right = Camera(device=1)
     test_cam_left.start()
     test_cam_right.start()

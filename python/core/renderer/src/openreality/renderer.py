@@ -72,5 +72,5 @@ class Renderer(multiprocessing.Process):
 # demo code to run this separately
 if __name__ == "__main__":
     # start device in desired mode
-    test_render = Renderer(cam_left="/tmp/cam1", cam_right="/tmp/cam2")
+    test_render = Renderer(cam_left="/tmp/cam0", cam_right="/tmp/cam1")
     test_render.start()
