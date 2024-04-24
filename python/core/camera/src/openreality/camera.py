@@ -326,5 +326,5 @@ if __name__ == "__main__":
     #capture_session.start()
 
     # test cam
-    cam_left = CameraFFMPEG(device=2)
+    cam_left = CameraFFMPEG(device=2, resolution=(1920, 1080))
     cam_left.start()
