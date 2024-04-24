@@ -27,6 +27,7 @@ class Camera(multiprocessing.Process):
         width: int = 1920,
         height: int = 1080,
         fps: float = 30,
+        rotation: ROTATION_TYPES = None
     ):
         super().__init__()
 
@@ -35,6 +36,7 @@ class Camera(multiprocessing.Process):
         self._width = width
         self._height = height
         self._fps = fps
+        self._rotation = rotation
 
         # OpenCV capture parameters
         self._cap = cv2.VideoCapture(self._device)
@@ -50,6 +52,7 @@ class Camera(multiprocessing.Process):
 
         # data
         self._buffer = queue.SimpleQueue()
+        self._memory = f"camera{self._device}"
 
     @property
     def device(self):
@@ -81,12 +84,23 @@ class Camera(multiprocessing.Process):
         return self._buffer
 
     def run(self):
+        # get info about frame dimensions
+        if self._cap.isOpened():
+            ret, frame = self._cap.read()
+            if not ret:
+                exit()
+
+        shm = shared_memory.SharedMemory(create=True, size=frame.nbytes, name=self._memory)
+        buffer = np.ndarray(frame.shape, dtype=frame.dtype, buffer=shm.buf)
+
         # run capture into the buffer
         while self._cap.isOpened():
             # read frames
             ret, frame = self._cap.read()
             if ret:
-                self._buffer.put(frame)
+                # put frame to the buffer
+                np.copyto(buffer, frame)
+
                 # calculate fps
                 self._ctime = time.time()
                 self._actual_fps = 1/(self._ctime-self._ptime)
