@@ -5,6 +5,7 @@ import os
 import time
 
 # multiprocessing
+import subprocess
 import multiprocessing
 from multiprocessing import shared_memory
 import queue
@@ -15,6 +16,104 @@ ROTATION_TYPES = Literal[
     cv2.ROTATE_180,
     cv2.ROTATE_90_COUNTERCLOCKWISE
 ]
+
+"""
+    Camera based on FFMPEG
+"""
+class CameraFFMPEG(multiprocessing.Process):
+    def __init__(
+        self,
+        device: int, # 1 for /dev/video1
+        resolution: Tuple[int, int], # width, height 
+        fps: int = 30
+    ):
+        super().__init__()
+        self._device = device
+        self._resolution = resolution
+        self._fps = fps
+        self._capture_pipeline = self._ffmpeg()
+        self._frame_shape = (self._resolution[1], self._resolution[0], 3)
+        self._frame_size = np.prod(self._frame_shape)
+
+        # performance metrics
+        self._ctime = 0
+        self._ptime = 0
+        self._actual_fps = 0
+
+        # data
+        self._memory = f"camera{self._device}"
+
+    @property
+    def device(self):
+        return self._device
+
+    @property
+    def resolution(self):
+        return self._resolution
+
+    @property
+    def fps(self):
+        return self._actual_fps
+
+    @property
+    def frame_shape(self) -> Tuple[int, int, int]:
+        # height, width, color depth in bytes
+        return self._frame_shape 
+
+    def _ffmpeg(self):
+        command = [
+            f"ffmpeg -f v4l2",
+            f"-r {self._fps}",
+            f"-video_size {self._resolution[0]}x{self._resolution[1]}",
+            f"-input_format mjpeg",
+            f"-i /dev/video{self._device}",
+            f"-vcodec mjpeg",  # Input codec set to mjpeg
+            f"-an -vcodec rawvideo",  # Decode the MJPEG stream to raw video
+            f"-pix_fmt bgr24",
+            f"-vsync 2",
+            f"-f image2pipe -"
+        ]
+
+        return subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=10**8
+        )
+
+    def _wait_for_cam(self):
+        for _ in range(30):
+            frame = self._read()
+            if frame is not None:
+                return True
+        return False
+
+    def _read(self):
+        raw_image = self._capture_pipeline.stdout.read(self._frame_size)
+        if len(raw_image) != self._frame_size:
+            return None
+        return np.frombuffer(raw_image, dtype=np.uint8).reshape(self._frame_shape)
+
+    def run(self):
+        if not self._wait_for_cam():
+            # TODO: RaiseError
+            exit()
+
+        # shared memory
+        shm = shared_memory.SharedMemory(create=True, size=self._frame_size.nbytes, name=self._memory)
+        buffer = np.ndarray(self._frame_shape, dtype=np.uint8, buffer=shm.buf)
+
+        # TODO: How do I check if it failed?
+        while True:
+            # get frame
+            frame = self._read()
+            np.copyto(buffer, frame)
+
+            # calculate fps
+            self._ctime = time.time()
+            self._actual_fps = 1/(self._ctime-self._ptime)
+            self._ptime = self._ctime
+            print(self._actual_fps)
+        # release pipeline
+        self._capture_pipeline.terminate()
+
 
 """
     Sample camera class.
@@ -227,5 +326,5 @@ if __name__ == "__main__":
     #capture_session.start()
 
     # test cam
-    cam_left = Camera(device=2)
+    cam_left = CameraFFMPEG(device=2, resolution=(1920, 1080))
     cam_left.start()
