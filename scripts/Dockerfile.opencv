@@ -2,19 +2,10 @@ FROM python:3.11.2-bullseye
 
 # ------------------ Ubuntu Setup ------------------ #
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt update -qy && apt upgrade -qy && \
-	apt install -qy build-essential software-properties-common
-RUN add-apt-repository -y universe && \
-    add-apt-repository -y multiverse && \
-    apt update -qy && \
-    apt upgrade -qy
-RUN apt install -qy wget gpg-agent gnupg2 curl git gcc cmake make \
-	g++ lsb-release vim bash-completion tzdata htop inxi neofetch \
-	gdb xterm tmux dirmngr
-
+RUN apt update -qy && apt upgrade -qy
 
 # ------------------ Setup OpenCV ------------------ #
 COPY . /app
 WORKDIR /app
-RUN bash /opencv.sh
-ENTRYPOINT ["bash"]
+#RUN bash /opencv.sh
+#ENTRYPOINT ["bash"]
