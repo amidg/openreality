@@ -7,8 +7,8 @@ import time
 # multiprocessing
 import multiprocessing
 from multiprocessing import shared_memory
-
-from typing import Literal, List, get_args
+import queue
+from typing import Literal, List, Tuple, get_args
 
 ROTATION_TYPES = Literal[
     cv2.ROTATE_90_CLOCKWISE,
@@ -20,7 +20,7 @@ ROTATION_TYPES = Literal[
     Sample camera class.
     It allows to start camera with specified resolution and FPS
 """
-class Camera():
+class Camera(multiprocessing.Process):
     def __init__(
         self,
         device: int, # 1 for /dev/video1
@@ -28,6 +28,8 @@ class Camera():
         height: int = 1080,
         fps: float = 30,
     ):
+        super().__init__()
+
         # camera parameters
         self._device = device
         self._width = width
@@ -36,11 +38,18 @@ class Camera():
 
         # OpenCV capture parameters
         self._cap = cv2.VideoCapture(self._device)
-        #self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-        self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'XVID'))
+        self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
         self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
         self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height)
         self._cap.set(cv2.CAP_PROP_FPS, self._fps)
+
+        # performance metrics
+        self._ctime = 0
+        self._ptime = 0
+        self._actual_fps = 0
+
+        # data
+        self._buffer = queue.SimpleQueue()
 
     @property
     def device(self):
@@ -57,6 +66,35 @@ class Camera():
     @property
     def height(self):
         return self._cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+    @property
+    def fps(self):
+        return self._actual_fps
+
+    @property
+    def frame_shape(self) -> Tuple[int, int, int]:
+        # width, height, color depth in bytes
+        return (self._width, self._height, 3)
+
+    @property
+    def buffer(self):
+        return self._buffer
+
+    def run(self):
+        # run capture into the buffer
+        while self._cap.isOpened():
+            # read frames
+            ret, frame = self._cap.read()
+            if ret:
+                self._buffer.put(frame)
+                # calculate fps
+                self._ctime = time.time()
+                self._actual_fps = 1/(self._ctime-self._ptime)
+                self._ptime = self._ctime
+                print(self._actual_fps)
+        # capture fail
+        self._cap.release()
+
 
 """
    Capture class that combines camera stream from N cameras into one buffer 
@@ -156,7 +194,6 @@ class Capture(multiprocessing.Process):
             self._ptime = self._ctime
             print(self._fps)
 
-
         # stop opencv stream
         for cam in self._cam_list:
             cam.cap.release()
@@ -167,10 +204,14 @@ class Capture(multiprocessing.Process):
 # demo code to run this separately
 if __name__ == "__main__":
     # start create list of cameras
-    cam_left = Camera(device=3)
-    cam_right = Camera(device=0)
-    cameras = [cam_left, cam_right]
+    #cam_left = Camera(device=3)
+    #cam_right = Camera(device=0)
+    #cameras = [cam_left, cam_right]
 
-    # create capture session
-    capture_session = Capture(cameras=cameras, rotation=cv2.ROTATE_90_CLOCKWISE)
-    capture_session.start()
+    ## create capture session
+    #capture_session = Capture(cameras=cameras, rotation=cv2.ROTATE_90_CLOCKWISE)
+    #capture_session.start()
+
+    # test cam
+    cam_left = Camera(device=2)
+    cam_left.start()
