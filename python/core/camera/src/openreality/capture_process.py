@@ -52,14 +52,6 @@ class Capture(multiprocessing.Process):
         self._ptime = 0
         self._fps = 0
 
-        # start all cams
-        #self._camera_ps: List[multiprocessing.Process] = []
-        #for camera in self._cam_list:
-        #    # TODO: add logger handler
-        #    self._camera_ps.append(multiprocessing.Process(target=camera.run))
-        #for camera in self._camera_ps:
-        #    camera.start()
-
     def run(self):
         # create output device
         cv2.namedWindow("render", cv2.WINDOW_NORMAL)
@@ -75,31 +67,15 @@ class Capture(multiprocessing.Process):
         if not cam_ready:
             exit()
 
-        # if cameras are ready, we need to calculate the size of the shared memory buffer
-        cam_memory: Dict[str, shared_memory.SharedMemory] = {}
-        cam_frames: Dict[str, np.ndarray] = {}
-        cam_frames_size: Dict[str, np.nbytes] = {}
-        for camera in self._cam_list:
-            # TODO: add handler for the not same size of the frame
-            cam_memory[camera.name] = shared_memory.SharedMemory(name=camera.name)
-            cam_frames[camera.name] = np.ndarray(
-                camera.frame_shape,
-                dtype=np.uint8,
-                buffer=cam_memory[camera.name].buf
-            )
-            cam_frames_size[camera.name] = np.full(camera.frame_shape, np.uint8).nbytes
-
-        # create render buffer for two main camera
-        left_cam_name = "left_eye"
-        right_cam_name = "right_eye"
-        frame_left = cam_frames[left_cam_name]
-        frame_right = cam_frames[right_cam_name]
+        # create render buffer from two front cameras
+        frame_left = self._cam_list[0].frame
+        frame_right = self._cam_list[1].frame
         if self._rotation is not None:
             frame_left = cv2.rotate(frame_left, self._rotation)
             frame_right = cv2.rotate(frame_right, self._rotation)
         render_shared_memory = shared_memory.SharedMemory(
             create=True,
-            size=(cam_frames_size[left_cam_name]+cam_frames_size[right_cam_name]),
+            size=(frame_left.size+frame_right.size),
             name=self._memory
         )
         render_frame_buffer = np.ndarray(
@@ -109,18 +85,31 @@ class Capture(multiprocessing.Process):
         )
 
         # stream video to renderer
-        while True:
-            # get frames
-            frame_left = cam_frames[left_cam_name]
-            frame_right = cam_frames[right_cam_name]
+        cam_ok = True
+        while cam_ok:
+            # iterate over all cameras
+            for index, camera in enumerate(self._cam_list):
+                if camera.cap.grab():
+                    # left eye
+                    if index == 0:
+                        ret, frame_left = camera.cap.retrieve(0)
+                        if not ret:
+                            cam_ok = False
+                            break
+                        if self._rotation is not None:
+                            frame_left = cv2.rotate(frame_left, self._rotation)
+                    # right eye
+                    elif index == 1:
+                        ret, frame_right = camera.cap.retrieve(0)
+                        if not ret:
+                            cam_ok = False
+                            break
+                        if self._rotation is not None:
+                            frame_left = cv2.rotate(frame_right, self._rotation)
+                else:
+                    cam_ok = False
 
-            # apply rotation
-            if self._rotation is not None:
-                frame_left = cv2.rotate(frame_left, self._rotation)
-                frame_right = cv2.rotate(frame_right, self._rotation)
-
-            # send those frames to the buffer
-            #rendered_frame = cv2.vconcat([frame_right, frame_left])
+            # build rendered frame
             rendered_frame = np.vstack(tuple([frame_right, frame_left]))
             np.copyto(render_frame_buffer, rendered_frame)
 
@@ -141,11 +130,6 @@ class Capture(multiprocessing.Process):
         render_shared_memory.close()
         render_shared_memory.unlink()
 
-        # stop all cameras
-        for camera in self._camera_ps:
-            camera.stop()
-            camera.join()
-
         
 # demo code to run this separately
 if __name__ == "__main__":
@@ -154,14 +138,7 @@ if __name__ == "__main__":
     cam_right = Camera(device=0, resolution=(1280,720), name="right_eye")
     cameras = [cam_left, cam_right]
 
-    # start all cams
-    camera_ps: List[multiprocessing.Process] = []
-    for camera in cameras:
-        # TODO: add logger handler
-        camera_ps.append(multiprocessing.Process(target=camera.run))
-    for camera in camera_ps:
-        camera.start()
-
     # create capture session
+    # There is no need to start cameras one by one because when object is created, capture is automatically started
     capture_session = Capture(cameras=cameras, rotation=cv2.ROTATE_90_CLOCKWISE)
     capture_session.start()

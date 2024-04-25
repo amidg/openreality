@@ -40,7 +40,8 @@ class Camera():
         # data
         self._memory = name
         self._frame_shape = (self._resolution[1], self._resolution[0], 3)
-        self._frame_size = np.full(self._frame_shape, np.uint8).nbytes
+        self._frame = np.full(self._frame_shape, np.uint8)
+        self._frame_size = self._frame.nbytes
 
     @property
     def device(self):
@@ -67,12 +68,16 @@ class Camera():
         return self._memory
 
     @property
-    def frame_shape(self):
+    def shape(self):
         return self._frame_shape
 
     @property
-    def frame_size(self):
+    def size(self):
         return self._frame_size
+
+    @property
+    def frame(self):
+        return self._frame
 
     @property
     def cap(self):
