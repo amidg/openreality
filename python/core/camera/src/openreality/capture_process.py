@@ -6,6 +6,7 @@ from typing import Literal, List, Dict, Tuple, Union, get_args
 # multiprocessing
 import multiprocessing
 from multiprocessing import shared_memory
+import queue
 
 # openreality
 from camera import Camera
@@ -52,11 +53,10 @@ class Capture(multiprocessing.Process):
         self._ptime = 0
         self._fps = 0
 
-    def run(self):
-        # create output device
-        cv2.namedWindow("render", cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        # data
+        self._data_buffer = queue.SimpleQueue()
 
+    def run(self):
         # check if all cameras are ready
         cam_ready = True
         for camera in self._cam_list:
@@ -68,18 +68,18 @@ class Capture(multiprocessing.Process):
             exit()
 
         # create render buffer from two front cameras
-        frame_left = self._cam_list[0].frame
-        frame_right = self._cam_list[1].frame
-        if self._rotation is not None:
-            frame_left = cv2.rotate(frame_left, self._rotation)
-            frame_right = cv2.rotate(frame_right, self._rotation)
+        frame_left: np.ndarray = self._cam_list[0].frame
+        frame_right: np.ndarray = self._cam_list[1].frame
         render_shared_memory = shared_memory.SharedMemory(
             create=True,
             size=(frame_left.size+frame_right.size),
             name=self._memory
         )
+        render_shape = tuple([frame_right.shape[0] + frame_left.shape[0], frame_left.shape[1], frame_left.shape[2]])
+        if self._rotation in [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE]:
+            render_shape = tuple([frame_right.shape[1] + frame_left.shape[1], frame_left.shape[0], frame_left.shape[2]])
         render_frame_buffer = np.ndarray(
-            tuple([frame_right.shape[0] + frame_left.shape[0], frame_left.shape[1], frame_left.shape[2]]),
+            render_shape,
             dtype=np.uint8,
             buffer=render_shared_memory.buf
         )
@@ -105,12 +105,14 @@ class Capture(multiprocessing.Process):
                             cam_ok = False
                             break
                         if self._rotation is not None:
-                            frame_left = cv2.rotate(frame_right, self._rotation)
+                            frame_right = cv2.rotate(frame_right, self._rotation)
                 else:
+                    print(f"Camera {index} has failed")
                     cam_ok = False
 
             # build rendered frame
             rendered_frame = np.vstack(tuple([frame_right, frame_left]))
+            self._data_buffer.put(rendered_frame)
             np.copyto(render_frame_buffer, rendered_frame)
 
             # calculate fps
@@ -118,11 +120,6 @@ class Capture(multiprocessing.Process):
             self._fps = 1/(self._ctime-self._ptime)
             self._ptime = self._ctime
             print(self._fps)
-
-            # show frame
-            cv2.imshow("render", rendered_frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
 
         # stop opencv stream
         for camera in self._cam_list:
