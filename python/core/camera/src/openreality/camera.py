@@ -11,7 +11,7 @@ from multiprocessing import shared_memory
     Sample camera class.
     It allows to start camera with specified resolution and FPS
 """
-class Camera(multiprocessing.Process):
+class Camera():
     def __init__(
         self,
         device: int, # 1 for /dev/video1
@@ -19,8 +19,6 @@ class Camera(multiprocessing.Process):
         fps: float = 30,
         name: str = "camera"
     ):
-        super().__init__()
-
         # camera parameters
         self._device = device
         self._resolution = resolution
@@ -32,6 +30,7 @@ class Camera(multiprocessing.Process):
             f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
             f"jpegdec ! videoconvert ! queue ! appsink drop=True sync=False"
         )
+        self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
         # performance metrics
         self._ctime = 0
@@ -80,9 +79,6 @@ class Camera(multiprocessing.Process):
         return self._cap
 
     def run(self):
-        # camera
-        self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
-
         # get shared memory object
         shm = shared_memory.SharedMemory(create=True, size=self._frame_size, name=self._memory)
         buffer = np.ndarray(self._frame_shape, dtype=np.uint8, buffer=shm.buf)
@@ -104,6 +100,7 @@ class Camera(multiprocessing.Process):
                 self._ctime = time.time()
                 self._actual_fps = 1/(self._ctime-self._ptime)
                 self._ptime = self._ctime
+                print(self._actual_fps)
 
         # capture fail
         self._cap.release()
@@ -113,5 +110,5 @@ class Camera(multiprocessing.Process):
 # demo code to run this separately
 if __name__ == "__main__":
     # test cam
-    cam_left = Camera(device=0, resolution=(1280, 720))
-    cam_left.start()
+    cam_left = Camera(device=0, resolution=(1280, 720), name="left_eye")
+    cam_left.run()

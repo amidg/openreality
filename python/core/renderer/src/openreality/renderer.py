@@ -44,7 +44,7 @@ class Renderer(multiprocessing.Process):
             self._actual_fps = 1/(self._ctime-self._ptime)
             self._ptime = self._ctime
             print(self._actual_fps)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(30) & 0xFF == ord('q'):
                 break
 
         # close shared memory
@@ -56,5 +56,6 @@ class Renderer(multiprocessing.Process):
 # demo code to run this separately
 if __name__ == "__main__":
     # start device in desired mode
-    test_render = Renderer(memmap="camera0", resolution=(1280, 720))
+    test_render = Renderer(memmap="left_eye", resolution=(1280, 720))
+    #test_render = Renderer(memmap="camera", resolution=(2560, 720))
     test_render.start()
