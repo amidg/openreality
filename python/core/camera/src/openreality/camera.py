@@ -25,17 +25,23 @@ class Camera():
         self._fps = fps
 
         # OpenCV capture parameters
-        self._gst_cmd = (
-            f"gst-launch-1.0 v4l2src device=/dev/video{self._device} ! "
-            f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
+        self._gst_shm = (
+            f"gst-launch-1.0 shmsrc socket-path=/tmp/cam1 ! "
+            f"image/jpeg,width=1280,height=720,framerate=30/1 ! "
             f"jpegdec ! videoconvert ! queue ! appsink drop=True sync=False"
         )
-        #self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
-        self._cap = cv2.VideoCapture(f"/dev/video{self._device}", cv2.CAP_V4L2)
-        self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._resolution[0])
-        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._resolution[1])
-        self._cap.set(cv2.CAP_PROP_FPS, self._fps)
+        self._cap = cv2.VideoCapture(self._gst_shm, cv2.CAP_GSTREAMER)
+        #self._gst_cmd = (
+        #    f"gst-launch-1.0 v4l2src device=/dev/video{self._device} ! "
+        #    f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
+        #    f"jpegdec ! videoconvert ! queue ! appsink drop=True sync=False"
+        #)
+        ##self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
+        #self._cap = cv2.VideoCapture(f"/dev/video{self._device}", cv2.CAP_V4L2)
+        #self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+        #self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._resolution[0])
+        #self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._resolution[1])
+        #self._cap.set(cv2.CAP_PROP_FPS, self._fps)
 
         # performance metrics
         self._ctime = 0
