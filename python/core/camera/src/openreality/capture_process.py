@@ -1,15 +1,14 @@
-import argparse
 import cv2
 import numpy as np
-import os
 import time
+from typing import Literal, List, Dict, Tuple, Union, get_args
 
 # multiprocessing
-import subprocess
 import multiprocessing
 from multiprocessing import shared_memory
-import queue
-from typing import Literal, List, Tuple, get_args
+
+# openreality
+from .camera import Camera
 
 ROTATION_TYPES = Literal[
     cv2.ROTATE_90_CLOCKWISE,
@@ -18,98 +17,15 @@ ROTATION_TYPES = Literal[
 ]
 
 """
-    Sample camera class.
-    It allows to start camera with specified resolution and FPS
+Dual camera capture via gstreamer but slow
+DISPLAY=:0 gst-launch-1.0 \
+multiqueue max-size-buffers=1 name=mqueue \
+v4l2src device=/dev/video0 ! image/jpeg,width=1280,height=720,framerate=30/1 ! mqueue.sink_1 \
+v4l2src device=/dev/video2 ! image/jpeg,width=1280,height=720,framerate=30/1 ! mqueue.sink_2 \
+mqueue.src_1 ! jpegdec ! videoconvert ! video/x-raw, format=RGB ! videoflip method=clockwise ! queue ! videomux.sink_0 \
+mqueue.src_2 ! jpegdec ! videoconvert ! video/x-raw, format=RGB ! videoflip method=clockwise ! queue ! videomux.sink_1 \
+videomixer name=videomux sink_1::ypos=1280 ! video/x-raw,width=720,height=2560 ! queue ! xvimagesink sync=false
 """
-class Camera(multiprocessing.Process):
-    def __init__(
-        self,
-        device: int, # 1 for /dev/video1
-        resolution: Tuple[int, int],
-        fps: float = 30
-    ):
-        super().__init__()
-
-        # camera parameters
-        self._device = device
-        self._resolution = resolution
-        self._fps = fps
-
-        # OpenCV capture parameters
-        #self._gst_cmd = (f"videotestsrc ! videoconvert ! appsink max-buffers=1 drop=True")
-        """
-            DISPLAY=:0 gst-launch-1.0 v4l2src device=/dev/video0 ! image/jpeg,width=1920,height=1080,framerate=30/1 ! jpegdec ! xvimagesink
-        """
-        self._gst_cmd = (
-            f"v4l2src device=/dev/video{self._device} io-mode=2 ! "
-            f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
-            f"jpegdec ! videoconvert ! appsink max-buffers=1 drop=True"
-        )
-
-        print(self._gst_cmd)
-        self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
-        #self._cap = cv2.VideoCapture(self._device, cv2.CAP_OPENCV_MJPEG)
-        #self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._resolution[0])
-        #self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._resolution[1])
-        #self._cap.set(cv2.CAP_PROP_FPS, self._fps)
-
-        # performance metrics
-        self._ctime = 0
-        self._ptime = 0
-        self._actual_fps = 0
-
-        # data
-        self._memory = f"camera{self._device}"
-        self._frame_shape = (self._resolution[1], self._resolution[0], 3)
-        self._frame_size = np.full(self._frame_shape, np.uint8).nbytes
-
-    @property
-    def device(self):
-        return self._device
-
-    @property
-    def cap(self):
-        return self._cap
-
-    @property
-    def fps(self):
-        return self._actual_fps
-
-    def run(self):
-        # get shared memory object
-        shm = shared_memory.SharedMemory(create=True, size=self._frame_size, name=self._memory)
-        buffer = np.ndarray(self._frame_shape, dtype=np.uint8, buffer=shm.buf)
-
-        # debug window
-        cv2.namedWindow("render", cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
-        # run capture into the buffer
-        try:
-            while self._cap.isOpened():
-                # read frames
-                ret, frame = self._cap.read()
-                #if ret:
-                # put frame to the buffer
-                np.copyto(buffer, frame)
-
-                # calculate fps
-                self._ctime = time.time()
-                self._actual_fps = 1/(self._ctime-self._ptime)
-                self._ptime = self._ctime
-                print(self._actual_fps)
-
-                # debug
-                cv2.imshow("render", frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-        except cv2.error as e:
-            print(f"Unable to run capture: {e}")
-        # capture fail
-        self._cap.release()
-        shm.close()
-        shm.unlink()
-
 
 """
    Capture class that combines camera stream from N cameras into one buffer 
@@ -136,72 +52,63 @@ class Capture(multiprocessing.Process):
         self._ptime = 0
         self._fps = 0
 
+        # start all cams
+        for camera in self._cam_list:
+            # TODO: add logger handler
+            camera.start()
+
     def run(self):
         # check if all cameras are ready
         cam_ready = True
-        for cam in self._cam_list:
-            cam_ready = cam_ready and cam.cap.isOpened()
+        for camera in self._cam_list:
+            cam_ready = cam_ready and camera.ready
     
         # if not ready, we quit
         # TODO: RaiseError
         if not cam_ready:
             exit()
 
-        # if cameras are ready, we need to calculate the size of the buffer
-        # TODO: add handler for the not same size of the frame
-        all_cam_frames: List[np.ndarray] = []
-        for cam in self._cam_list:
-            if cam.cap.grab():
-                #TODO: Handler of the errors here
-                ret, frame = cam.cap.retrieve(0)
+        # if cameras are ready, we need to calculate the size of the shared memory buffer
+        cam_memory: Dict[str, shared_memory.SharedMemory] = {}
+        cam_frames: Dict[str, np.ndarray] = {}
+        for camera in self._cam_list:
+            # TODO: add handler for the not same size of the frame
+            cam_memory[camera.name] = shared_memory.SharedMemory(name=camera.name)
+            cam_frames[camera.name] = np.ndarray(
+                camera.frame_shape,
+                dtype=np.uint8,
+                buffer=cam_memory[camera.name]
+            )
 
-            # Flip frame if necessary
+        # create render buffer for two main camera
+        frame_left = cam_frames["left_eye"]
+        frame_right = cam_frames["right_eye"]
+        if self._rotation is not None:
+            frame_left = cv2.rotate(frame_left, self._rotation)
+            frame_right = cv2.rotate(frame_right, self._rotation)
+        render_shared_memory = shared_memory.SharedMemory(
+            create=True, size=(frame_left.nbytes + frame_right.nbytes), name=self._memory
+        )
+        render_frame_buffer = np.ndarray(
+            tuple(x + y for x, y in zip(frame_right, frame_left)),
+            dtype=np.uint8,
+            buffer=render_shared_memory.buf
+        )
+
+        # stream video to renderer
+        while True:
+            # get frames
+            frame_left = cam_frames["left_eye"]
+            frame_right = cam_frames["right_eye"]
+
+            # apply rotation
             if self._rotation is not None:
-                frame = cv2.rotate(frame, self._rotation)
+                frame_left = cv2.rotate(frame_left, self._rotation)
+                frame_right = cv2.rotate(frame_right, self._rotation)
 
-            # start creating stack of images
-            all_cam_frames.append(frame)
-        test_buf_frame = np.vstack(tuple(frame for frame in all_cam_frames))
-        shm = shared_memory.SharedMemory(
-            create=True, size=test_buf_frame.nbytes, name=self._memory
-        )
-        frame_buffer = np.ndarray(
-            test_buf_frame.shape,
-            dtype=test_buf_frame.dtype,
-            buffer=shm.buf
-        )
-
-        # debug
-        #cv2.namedWindow("render", cv2.WINDOW_NORMAL)
-        #cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
-        # stream video
-        # TODO: add handler when closed
-        cam_frames: List[np.ndarray] = []
-        while cam_ready:
-            # get all frames
-            for camera in self._cam_list:
-                if camera.cap.grab():
-                    ret, frame = camera.cap.retrieve(0)
-                    #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    # Flip frame if necessary
-                    if self._rotation is not None:
-                        frame = cv2.rotate(frame, self._rotation)
-                    cam_frames.append(frame)
-                else:
-                    cam_ready = False
-                    break
-    
-            # build buffer
-            buffer = np.vstack(tuple(frame for frame in reversed(cam_frames)))
-            np.copyto(frame_buffer, buffer)  # Copy frame to shared memory
-            cam_frames = []
-
-            # debug
-            #print(buffer.shape)
-            #cv2.imshow("render", buffer)
-            #if cv2.waitKey(1) & 0xFF == ord('q'):
-            #    break
+            # send those frames to the buffer
+            rendered_frame = np.vstack(tuple(frame_right, frame_left))
+            np.copyto(render_frame_buffer, rendered_frame)
 
             # calculate fps
             self._ctime = time.time()
@@ -210,23 +117,19 @@ class Capture(multiprocessing.Process):
             print(self._fps)
 
         # stop opencv stream
-        for cam in self._cam_list:
-            cam.cap.release()
-        shm.close()
-        shm.unlink()
+        for camera in self._cam_list:
+            camera.cap.release()
+        render_shared_memory.close()
+        render_shared_memory.unlink()
 
         
 # demo code to run this separately
 if __name__ == "__main__":
     # start create list of cameras
-    #cam_left = Camera(device=3)
-    #cam_right = Camera(device=0)
-    #cameras = [cam_left, cam_right]
+    cam_left = Camera(device=2, resolution=(1280,720), name="left_eye")
+    cam_right = Camera(device=0, resolution=(1280,720), name="right_eye")
+    cameras = [cam_left, cam_right]
 
-    ## create capture session
-    #capture_session = Capture(cameras=cameras, rotation=cv2.ROTATE_90_CLOCKWISE)
-    #capture_session.start()
-
-    # test cam
-    cam_left = Camera(device=0, resolution=(1920, 1080))
-    cam_left.start()
+    # create capture session
+    capture_session = Capture(cameras=cameras, rotation=cv2.ROTATE_90_CLOCKWISE)
+    capture_session.start()

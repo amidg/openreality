@@ -1,21 +1,11 @@
-import argparse
 import cv2
 import numpy as np
-import os
 import time
-
-# multiprocessing
-import subprocess
-import multiprocessing
-from multiprocessing import shared_memory
-import queue
 from typing import Literal, List, Tuple, get_args
 
-ROTATION_TYPES = Literal[
-    cv2.ROTATE_90_CLOCKWISE,
-    cv2.ROTATE_180,
-    cv2.ROTATE_90_COUNTERCLOCKWISE
-]
+# multiprocessing
+import multiprocessing
+from multiprocessing import shared_memory
 
 """
     Sample camera class.
@@ -26,7 +16,8 @@ class Camera(multiprocessing.Process):
         self,
         device: int, # 1 for /dev/video1
         resolution: Tuple[int, int],
-        fps: float = 30
+        fps: float = 30,
+        name: str = "camera"
     ):
         super().__init__()
 
@@ -48,7 +39,7 @@ class Camera(multiprocessing.Process):
         self._actual_fps = 0
 
         # data
-        self._memory = f"camera{self._device}"
+        self._memory = name
         self._frame_shape = (self._resolution[1], self._resolution[0], 3)
         self._frame_size = np.full(self._frame_shape, np.uint8).nbytes
 
@@ -57,30 +48,54 @@ class Camera(multiprocessing.Process):
         return self._device
 
     @property
+    def ready(self):
+        return self._cap.isOpened()
+
+    @property
+    def resolution(self):
+        return self._resolution
+
+    @property
     def fps(self):
         return self._actual_fps
 
     @property
     def gst(self):
-        return self._gst
+        return self._gst_cmd
+
+    @property
+    def name(self):
+        return self._memory
+
+    @property
+    def frame_shape(self):
+        return self._frame_shape
+
+    @property
+    def frame_size(self):
+        return self._frame_size
+
+    @property
+    def cap(self):
+        return self._cap
 
     def run(self):
         # camera
-        cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
+        self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
         # get shared memory object
         shm = shared_memory.SharedMemory(create=True, size=self._frame_size, name=self._memory)
         buffer = np.ndarray(self._frame_shape, dtype=np.uint8, buffer=shm.buf)
 
         # run capture into the buffer
-        if not cap.isOpened():
+        if not self._cap.isOpened():
             print("Failed to open capture")
             # TODO: RaiseError
             exit()
 
-        while cap.isOpened():
+        while self._cap.isOpened():
             # read frames
-            ret, frame = cap.read()
+            ret, frame = self._cap.read()
             if ret:
                 # put frame to the buffer
                 np.copyto(buffer, frame)
@@ -91,7 +106,7 @@ class Camera(multiprocessing.Process):
                 self._ptime = self._ctime
 
         # capture fail
-        cap.release()
+        self._cap.release()
         shm.close()
         shm.unlink()
         
