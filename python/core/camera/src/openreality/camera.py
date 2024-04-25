@@ -43,11 +43,13 @@ class Camera(multiprocessing.Process):
         self._gst_cmd = (
             f"v4l2src device=/dev/video{self._device} io-mode=2 ! "
             f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
-            f"jpegdec ! videoconvert ! queue ! appsink max-buffers=1 drop=True"
+            #f"jpegdec ! videoconvert ! queue ! appsink drop=True"
+            f"decodebin ! videoconvert ! queue ! appsink drop=True sync=False"
         )
 
         print(self._gst_cmd)
-        self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
+        self._cap = cv2.VideoCapture(self._gst_cmd)
+        #self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
         #self._cap = cv2.VideoCapture(self._device, cv2.CAP_OPENCV_MJPEG)
         #self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._resolution[0])
         #self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._resolution[1])
@@ -81,15 +83,18 @@ class Camera(multiprocessing.Process):
         buffer = np.ndarray(self._frame_shape, dtype=np.uint8, buffer=shm.buf)
 
         # debug window
-        cv2.namedWindow("render", cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        #cv2.namedWindow("render", cv2.WINDOW_NORMAL)
+        #cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         # run capture into the buffer
-        try:
-            while self._cap.isOpened():
-                # read frames
-                ret, frame = self._cap.read()
-                #if ret:
+        if not self._cap.isOpened():
+            print("Failed to open capture")
+            exit()
+
+        while self._cap.isOpened():
+            # read frames
+            ret, frame = self._cap.read()
+            if ret:
                 # put frame to the buffer
                 np.copyto(buffer, frame)
 
@@ -100,11 +105,9 @@ class Camera(multiprocessing.Process):
                 print(self._actual_fps)
 
                 # debug
-                cv2.imshow("render", frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-        except cv2.error as e:
-            print(f"Unable to run capture: {e}")
+                #cv2.imshow("render", frame)
+                #if cv2.waitKey(1) & 0xFF == ord('q'):
+                #    break
         # capture fail
         self._cap.release()
         shm.close()
