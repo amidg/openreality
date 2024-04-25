@@ -10,7 +10,6 @@ import multiprocessing
 from multiprocessing import shared_memory
 import queue
 from typing import Literal, List, Tuple, get_args
-import ffmpegcv
 
 ROTATION_TYPES = Literal[
     cv2.ROTATE_90_CLOCKWISE,
@@ -39,12 +38,16 @@ class Camera(multiprocessing.Process):
         self._rotation = rotation
 
         # OpenCV capture parameters
-        self._cap = ffmpegcv.VideoCaptureCAM(self._device, camsize_wh=self._resolution, camfps=self._fps, camcodec="mjpeg")
-        #self._cap = cv2.VideoCapture(self._device)
-        #self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-        #self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
-        #self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height)
-        #self._cap.set(cv2.CAP_PROP_FPS, self._fps)
+        """
+        DISPLAY=:0 gst-launch-1.0 v4l2src device=/dev/video0 ! image/jpeg,width=1920,height=1080,framerate=30/1 ! jpegparse ! jpegdec ! xvimagesink
+        """
+        self._gst_cmd = (
+            f"gst-launch-1.0 v4l2src device=/dev/video{self._device} ! "
+            f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
+            f" jpegparse ! jpegdec ! "
+            f"videoconvert ! video/x-raw, format=(string)BGR ! appsink max-buffers=1 drop=True"
+        )
+        self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
         # performance metrics
         self._ctime = 0
@@ -207,5 +210,5 @@ if __name__ == "__main__":
     #capture_session.start()
 
     # test cam
-    cam_left = Camera(device=2, resolution=(1920, 1080))
+    cam_left = Camera(device=0, resolution=(1920, 1080))
     cam_left.start()
