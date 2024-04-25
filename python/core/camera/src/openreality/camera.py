@@ -36,10 +36,6 @@ class Camera(multiprocessing.Process):
         self._fps = fps
 
         # OpenCV capture parameters
-        #self._gst_cmd = (f"videotestsrc ! videoconvert ! appsink max-buffers=1 drop=True")
-        """
-            DISPLAY=:0 gst-launch-1.0 v4l2src device=/dev/video0 ! image/jpeg,width=1920,height=1080,framerate=30/1 ! jpegdec ! xvimagesink
-        """
         self._gst_cmd = (
             f"gst-launch-1.0 v4l2src device=/dev/video{self._device} ! "
             f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
@@ -47,7 +43,6 @@ class Camera(multiprocessing.Process):
         )
 
         print(self._gst_cmd)
-        self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
         # performance metrics
         self._ctime = 0
@@ -64,30 +59,29 @@ class Camera(multiprocessing.Process):
         return self._device
 
     @property
-    def cap(self):
-        return self._cap
-
-    @property
     def fps(self):
         return self._actual_fps
 
     def run(self):
+        # camera
+        cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
+
         # get shared memory object
         shm = shared_memory.SharedMemory(create=True, size=self._frame_size, name=self._memory)
         buffer = np.ndarray(self._frame_shape, dtype=np.uint8, buffer=shm.buf)
 
         # debug window
-        #cv2.namedWindow("render", cv2.WINDOW_NORMAL)
-        #cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.namedWindow("render", cv2.WINDOW_NORMAL)
+        cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         # run capture into the buffer
-        if not self._cap.isOpened():
+        if not cap.isOpened():
             print("Failed to open capture")
             exit()
 
-        while self._cap.isOpened():
+        while cap.isOpened():
             # read frames
-            ret, frame = self._cap.read()
+            ret, frame = cap.read()
             if ret:
                 # put frame to the buffer
                 np.copyto(buffer, frame)
@@ -99,11 +93,11 @@ class Camera(multiprocessing.Process):
                 print(self._actual_fps)
 
                 # debug
-                #cv2.imshow("render", frame)
-                #if cv2.waitKey(1) & 0xFF == ord('q'):
-                #    break
+                cv2.imshow("render", frame)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
         # capture fail
-        self._cap.release()
+        cap.release()
         shm.close()
         shm.unlink()
         
