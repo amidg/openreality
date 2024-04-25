@@ -42,8 +42,6 @@ class Camera(multiprocessing.Process):
             f"jpegdec ! videoconvert ! queue ! appsink drop=True sync=False"
         )
 
-        print(self._gst_cmd)
-
         # performance metrics
         self._ctime = 0
         self._ptime = 0
@@ -62,6 +60,10 @@ class Camera(multiprocessing.Process):
     def fps(self):
         return self._actual_fps
 
+    @property
+    def gst(self):
+        return self._gst
+
     def run(self):
         # camera
         cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
@@ -70,13 +72,10 @@ class Camera(multiprocessing.Process):
         shm = shared_memory.SharedMemory(create=True, size=self._frame_size, name=self._memory)
         buffer = np.ndarray(self._frame_shape, dtype=np.uint8, buffer=shm.buf)
 
-        # debug window
-        cv2.namedWindow("render", cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
         # run capture into the buffer
         if not cap.isOpened():
             print("Failed to open capture")
+            # TODO: RaiseError
             exit()
 
         while cap.isOpened():
@@ -90,12 +89,7 @@ class Camera(multiprocessing.Process):
                 self._ctime = time.time()
                 self._actual_fps = 1/(self._ctime-self._ptime)
                 self._ptime = self._ctime
-                print(self._actual_fps)
 
-                # debug
-                cv2.imshow("render", frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
         # capture fail
         cap.release()
         shm.close()
@@ -104,5 +98,5 @@ class Camera(multiprocessing.Process):
 # demo code to run this separately
 if __name__ == "__main__":
     # test cam
-    cam_left = Camera(device=0, resolution=(1920, 1080))
+    cam_left = Camera(device=0, resolution=(1280, 720))
     cam_left.start()
