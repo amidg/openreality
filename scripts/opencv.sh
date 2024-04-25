@@ -13,7 +13,7 @@ git clone --recursive https://github.com/opencv/opencv-python.git --branch "$OPE
 cd opencv-python
 
 # Now re-tag the repository with +industrialnext
-git tag "$OPENCV_VERSION+ffmpeg"
+git tag "$OPENCV_VERSION+openreality"
 # Now remove the old tag
 git tag -d "$OPENCV_VERSION"
 
