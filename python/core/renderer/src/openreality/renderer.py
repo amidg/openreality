@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
-
-# multiprocessing
+import time
+from typing import Tuple
 import multiprocessing
 from multiprocessing import shared_memory
 
@@ -11,16 +11,21 @@ from multiprocessing import shared_memory
 class Renderer(multiprocessing.Process):
     def __init__(
         self,
-        memmap: str = "camera",
-        buf_width: int = 1280,
-        buf_height: int = 480,
-        buf_depth: int = 3
+        memmap: str,
+        resolution: Tuple[int, int]
     ):
         super().__init__()
         self._memmap = memmap
-        self._width = buf_width
-        self._height = buf_height
-        self._depth = buf_depth
+        self._resolution = resolution
+
+        # performance metrics
+        self._ctime = 0
+        self._ptime = 0
+        self._actual_fps = 0
+
+        # data
+        self._frame_shape = (self._resolution[1], self._resolution[0], 3)
+        self._frame_size = np.full(self._frame_shape, np.uint8).nbytes
 
     def run(self):
         # create output device
@@ -28,27 +33,28 @@ class Renderer(multiprocessing.Process):
         cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         # get shared memory
-        self._shm = shared_memory.SharedMemory(name=self._memmap)
-        self._frame = np.ndarray(
-            (self._width, self._height, self._depth),
-            dtype="uint8",
-            buffer=self._shm.buf
-        )
+        shm = shared_memory.SharedMemory(name=self._memmap)
+        frame = np.ndarray(self._frame_shape, dtype="uint8", buffer=shm.buf)
 
         # TODO: add proper handling
         while True:
-            cv2.imshow("render", self._frame)
+            cv2.imshow("render", frame)
+            # calculate fps
+            self._ctime = time.time()
+            self._actual_fps = 1/(self._ctime-self._ptime)
+            self._ptime = self._ctime
+            print(self._actual_fps)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
         # close shared memory
-        self._shm.close()
-        self._shm.unlink()
+        shm.close()
+        shm.unlink()
         cv2.destroyAllWindows()
 
 
 # demo code to run this separately
 if __name__ == "__main__":
     # start device in desired mode
-    test_render = Renderer(memmap="camera")
+    test_render = Renderer(memmap="camera0", resolution=(1280, 720))
     test_render.start()
