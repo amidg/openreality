@@ -44,8 +44,8 @@ class Camera(multiprocessing.Process):
         self._gst_cmd = (
             f"gst-launch-1.0 v4l2src device=/dev/video{self._device} ! "
             f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
-            f" jpegparse ! jpegdec ! "
-            f"videoconvert ! video/x-raw, format=(string)BGR ! appsink max-buffers=1 drop=True"
+            f"jpegparse ! jpegdec ! video/x-raw ! videoconvert ! video/x-raw, format=(string)BGR ! "
+            f"appsink max-buffers=1 drop=True"
         )
         self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
