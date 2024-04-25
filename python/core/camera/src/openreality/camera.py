@@ -41,19 +41,13 @@ class Camera(multiprocessing.Process):
             DISPLAY=:0 gst-launch-1.0 v4l2src device=/dev/video0 ! image/jpeg,width=1920,height=1080,framerate=30/1 ! jpegdec ! xvimagesink
         """
         self._gst_cmd = (
-            f"v4l2src device=/dev/video{self._device} io-mode=2 ! "
+            f"gst-launch-1.0 v4l2src device=/dev/video{self._device} ! "
             f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
-            #f"jpegdec ! videoconvert ! queue ! appsink drop=True"
-            f"decodebin ! videoconvert ! queue ! appsink drop=True sync=False"
+            f"jpegdec ! videoconvert ! queue ! appsink drop=True sync=False"
         )
 
         print(self._gst_cmd)
-        self._cap = cv2.VideoCapture(self._gst_cmd)
-        #self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
-        #self._cap = cv2.VideoCapture(self._device, cv2.CAP_OPENCV_MJPEG)
-        #self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._resolution[0])
-        #self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._resolution[1])
-        #self._cap.set(cv2.CAP_PROP_FPS, self._fps)
+        self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
         # performance metrics
         self._ctime = 0
