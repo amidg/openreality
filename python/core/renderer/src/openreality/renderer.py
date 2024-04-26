@@ -56,5 +56,5 @@ class Renderer(multiprocessing.Process):
 # demo code to run this separately
 if __name__ == "__main__":
     # start device in desired mode
-    test_render = Renderer(memmap="camera", resolution=(720, 2560))
+    test_render = Renderer(memmap="camera", resolution=(720, 1280))
     test_render.start()
