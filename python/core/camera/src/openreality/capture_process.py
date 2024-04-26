@@ -21,17 +21,21 @@ ROTATION_TYPES = Literal[
 """
    Capture class that combines camera stream from N cameras into one buffer 
 """
-class Capture(threading.Thread):
+class Capture():
 #class Capture(multiprocessing.Process):
-    def __init__(
-        self,
-        cameras: List[Camera],
-        rotation: ROTATION_TYPES = None
-    ):
-        super().__init__()
-        self._cam_list = cameras
+    def __init__(self):
+        #super().__init__()
+        self._cam_list: List[Camera] = []
         self._rotation = None
         self._memory = "camera"
+        
+        # time
+        self._ctime = 0
+        self._ptime = 0
+        self._fps = 0
+
+    def run(self, cameras: List[Camera], rotation: ROTATION_TYPES = None):
+        # do some setup
         if rotation is not None:
             try:
                 assert rotation in get_args(ROTATION_TYPES)
@@ -39,19 +43,12 @@ class Capture(threading.Thread):
             except AssertionError:
                 # TODO: add logger handler
                 print(f"Incorrect rotation requested {rotation}: must be cv2.ROTATE_XX_YY type")
-        # time
-        self._ctime = 0
-        self._ptime = 0
-        self._fps = 0
-
-        # data
-        self._data_buffer = queue.SimpleQueue()
 
         # start cameras
+        self._cam_list = cameras
         for cam in self._cam_list:
             cam.start()
 
-    def run(self):
         # wait for all cams to start
         cam_left = self._cam_list[0]
         cam_right = self._cam_list[1]
@@ -107,11 +104,14 @@ class Capture(threading.Thread):
 # demo code to run this separately
 if __name__ == "__main__":
     # start create list of cameras
-    cam_left = Camera(device=2, resolution=(1280,720))
-    cam_right = Camera(device=0, resolution=(1280,720))
+    crop_area = (0,720,320,960)
+    resolution = (1280,720)
+    cam_left = Camera(device=2, resolution=resolution, crop_area=crop_area)
+    cam_right = Camera(device=0, resolution=resolution, crop_area=crop_area)
     cameras = [cam_left, cam_right]
 
     # create capture session
     # There is no need to start cameras one by one because when object is created, capture is automatically started
-    capture_session = Capture(cameras=cameras, rotation=cv2.ROTATE_90_CLOCKWISE)
+    capture = Capture()
+    capture_session = multiprocessing.Process(target=capture.run, args=(cameras, cv2.ROTATE_90_CLOCKWISE,))
     capture_session.start()

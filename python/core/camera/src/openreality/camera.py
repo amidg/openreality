@@ -13,6 +13,7 @@ class Camera(threading.Thread):
         self,
         device: int, # 1 for /dev/video1
         resolution: Tuple[int, int],
+        crop_area: Tuple[int, int, int, int], # y0,y1,x0,x1
         fps: float = 30,
     ):
         super().__init__()
@@ -20,6 +21,7 @@ class Camera(threading.Thread):
         # camera parameters
         self._device = device
         self._resolution = resolution
+        self._crop_area = crop_area 
         self._fps = fps
 
         # camera1
@@ -69,18 +71,30 @@ class Camera(threading.Thread):
     def run(self):
         while self._cap.isOpened():
             # grab frame
-            self._grabbed, self._frame = self._cap.read()
+            ret, self._frame = self._cap.read()
+            if not ret:
+                # TODO: add error checking
+                continue
+
+            # crop area
+            # TODO: add error checking
+            self._frame = self._frame[
+                self._crop_area[0]:self._crop_area[1],
+                self._crop_area[2]:self._crop_area[3]
+            ]
+            self._grabbed = ret
 
             # calculate fps
             self._ctime = time.time()
             self._real_fps = 1/(self._ctime-self._ptime)
             self._ptime = self._ctime
-            print(self._real_fps)
 
 # demo code to run this separately
 if __name__ == "__main__":
-    test_cam1 = Camera(device=0, resolution=(1280, 720))
+    crop_area = (0,720,320,960)
+    resolution = (1280,720)
+    test_cam1 = Camera(device=0, resolution=resolution, crop_area=crop_area)
     test_cam1.start()
 
-    test_cam2 = Camera(device=2, resolution=(1280, 720))
+    test_cam2 = Camera(device=2, resolution=resolution, crop_area=crop_area)
     test_cam2.start()
