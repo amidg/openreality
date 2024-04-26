@@ -12,6 +12,7 @@ from multiprocessing import shared_memory
     It allows to start camera with specified resolution and FPS
 """
 class Camera():
+#class Camera(multiprocessing.Process):
     def __init__(
         self,
         device: int, # 1 for /dev/video1
@@ -19,24 +20,25 @@ class Camera():
         fps: float = 30,
         name: str = "camera"
     ):
+        #super().__init__()
         # camera parameters
         self._device = device
         self._resolution = resolution
         self._fps = fps
 
         # OpenCV capture parameters
-        self._gst_shm = (
-            f"gst-launch-1.0 shmsrc socket-path=/tmp/cam1 ! "
-            f"image/jpeg,width=1280,height=720,framerate=30/1 ! "
-            f"jpegdec ! videoconvert ! queue ! appsink drop=True sync=False"
-        )
-        self._cap = cv2.VideoCapture(self._gst_shm, cv2.CAP_GSTREAMER)
-        #self._gst_cmd = (
-        #    f"gst-launch-1.0 v4l2src device=/dev/video{self._device} ! "
-        #    f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
+        #self._gst_shm = (
+        #    f"gst-launch-1.0 shmsrc socket-path=/tmp/cam1 ! "
+        #    f"image/jpeg,width=1280,height=720,framerate=30/1 ! "
         #    f"jpegdec ! videoconvert ! queue ! appsink drop=True sync=False"
         #)
-        ##self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
+        #self._cap = cv2.VideoCapture(self._gst_shm, cv2.CAP_GSTREAMER)
+        self._gst_cmd = (
+            f"gst-launch-1.0 v4l2src device=/dev/video{self._device} ! "
+            f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
+            f"jpegdec ! videoconvert ! queue ! appsink drop=True sync=False"
+        )
+        self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
         #self._cap = cv2.VideoCapture(f"/dev/video{self._device}", cv2.CAP_V4L2)
         #self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
         #self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._resolution[0])
@@ -128,3 +130,5 @@ if __name__ == "__main__":
     # test cam
     cam_left = Camera(device=0, resolution=(1280, 720), name="left_eye")
     cam_left.run()
+    #cam_right = Camera(device=2, resolution=(1280, 720), name="right_eye")
+    #cam_right.start()
