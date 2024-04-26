@@ -18,17 +18,6 @@ ROTATION_TYPES = Literal[
 ]
 
 """
-Dual camera capture via gstreamer but slow
-DISPLAY=:0 gst-launch-1.0 \
-multiqueue max-size-buffers=1 name=mqueue \
-v4l2src device=/dev/video0 ! image/jpeg,width=1280,height=720,framerate=30/1 ! mqueue.sink_1 \
-v4l2src device=/dev/video2 ! image/jpeg,width=1280,height=720,framerate=30/1 ! mqueue.sink_2 \
-mqueue.src_1 ! jpegdec ! videoconvert ! video/x-raw, format=RGB ! videoflip method=clockwise ! queue ! videomux.sink_0 \
-mqueue.src_2 ! jpegdec ! videoconvert ! video/x-raw, format=RGB ! videoflip method=clockwise ! queue ! videomux.sink_1 \
-videomixer name=videomux sink_1::ypos=1280 ! video/x-raw,width=720,height=2560 ! queue ! xvimagesink sync=false
-"""
-
-"""
    Capture class that combines camera stream from N cameras into one buffer 
 """
 class Capture(multiprocessing.Process):
@@ -55,6 +44,10 @@ class Capture(multiprocessing.Process):
 
         # data
         self._data_buffer = queue.SimpleQueue()
+
+        # start cameras
+        for cam in self._cam_list:
+            cam.start()
 
     def run(self):
         # check if all cameras are ready
@@ -89,26 +82,20 @@ class Capture(multiprocessing.Process):
         while cam_ok:
             # iterate over all cameras
             for index, camera in enumerate(self._cam_list):
-                if camera.cap.grab():
-                    # left eye
-                    if index == 0:
-                        ret, frame_left = camera.cap.retrieve(0)
-                        if not ret:
-                            cam_ok = False
-                            break
-                        if self._rotation is not None:
-                            frame_left = cv2.rotate(frame_left, self._rotation)
-                    # right eye
-                    elif index == 1:
-                        ret, frame_right = camera.cap.retrieve(0)
-                        if not ret:
-                            cam_ok = False
-                            break
-                        if self._rotation is not None:
-                            frame_right = cv2.rotate(frame_right, self._rotation)
-                else:
-                    print(f"Camera {index} has failed")
+                if not camera.frame_ok:
                     cam_ok = False
+                    break
+
+                # left eye
+                if index == 0:
+                    frame_left = camera.frame
+                    if self._rotation is not None:
+                        frame_left = cv2.rotate(frame_left, self._rotation)
+                # right eye
+                elif index == 1:
+                    frame_right = camera.frame
+                    if self._rotation is not None:
+                        frame_right = cv2.rotate(frame_right, self._rotation)
 
             # build rendered frame
             rendered_frame = np.vstack(tuple([frame_right, frame_left]))
