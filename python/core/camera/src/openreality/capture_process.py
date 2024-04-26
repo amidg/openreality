@@ -75,10 +75,6 @@ class Capture(threading.Thread):
             buffer=render_shared_memory.buf
         )
 
-        # create output device
-        #cv2.namedWindow("render", cv2.WINDOW_NORMAL)
-        #cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
         # stream video to renderer
         while True:
             # iterate over all cameras
@@ -104,14 +100,6 @@ class Capture(threading.Thread):
             self._fps = 1/(self._ctime-self._ptime)
             self._ptime = self._ctime
 
-            #cv2.imshow("render", rendered_frame)
-            #if cv2.waitKey(30) & 0xFF == ord('q'):
-            #    break
-
-
-        # stop opencv stream
-        #for camera in self._cam_list:
-        #    camera.cap.release()
         render_shared_memory.close()
         render_shared_memory.unlink()
 
