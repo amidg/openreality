@@ -77,8 +77,9 @@ class Camera(threading.Thread):
 
             # calculate fps
             self._ctime = time.time()
-            self._fps = 1/(self._ctime-self._ptime)
+            self._real_fps = 1/(self._ctime-self._ptime)
             self._ptime = self._ctime
+            print(self._real_fps)
 
 
 """
@@ -201,5 +202,8 @@ class Camera(threading.Thread):
         
 # demo code to run this separately
 if __name__ == "__main__":
-    test_cam = Camera(device=0, resolution=(1280, 720))
-    test_cam.start()
+    test_cam1 = Camera(device=0, resolution=(1280, 720))
+    test_cam1.start()
+
+    test_cam2 = Camera(device=2, resolution=(1280, 720))
+    test_cam2.start()

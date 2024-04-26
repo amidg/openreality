@@ -7,6 +7,7 @@ from typing import Literal, List, Dict, Tuple, Union, get_args
 import multiprocessing
 from multiprocessing import shared_memory
 import queue
+import threading
 
 # openreality
 from camera import Camera
@@ -20,7 +21,8 @@ ROTATION_TYPES = Literal[
 """
    Capture class that combines camera stream from N cameras into one buffer 
 """
-class Capture(multiprocessing.Process):
+class Capture(threading.Thread):
+#class Capture(multiprocessing.Process):
     def __init__(
         self,
         cameras: List[Camera],
@@ -50,22 +52,18 @@ class Capture(multiprocessing.Process):
             cam.start()
 
     def run(self):
-        # check if all cameras are ready
-        cam_ready = True
-        for camera in self._cam_list:
-            cam_ready = cam_ready and camera.ready
-    
-        # if not ready, we quit
-        # TODO: RaiseError
-        if not cam_ready:
-            exit()
+        # wait for all cams to start
+        cam_left = self._cam_list[0]
+        cam_right = self._cam_list[1]
+        while not (cam_left.frame_ok and cam_right.frame_ok):
+            pass
 
         # create render buffer from two front cameras
-        frame_left: np.ndarray = self._cam_list[0].frame
-        frame_right: np.ndarray = self._cam_list[1].frame
+        frame_left: np.ndarray = cam_left.frame
+        frame_right: np.ndarray = cam_right.frame
         render_shared_memory = shared_memory.SharedMemory(
             create=True,
-            size=(frame_left.size+frame_right.size),
+            size=(frame_left.nbytes+frame_right.nbytes),
             name=self._memory
         )
         render_shape = tuple([frame_right.shape[0] + frame_left.shape[0], frame_left.shape[1], frame_left.shape[2]])
@@ -77,15 +75,14 @@ class Capture(multiprocessing.Process):
             buffer=render_shared_memory.buf
         )
 
+        # create output device
+        #cv2.namedWindow("render", cv2.WINDOW_NORMAL)
+        #cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
         # stream video to renderer
-        cam_ok = True
-        while cam_ok:
+        while True:
             # iterate over all cameras
             for index, camera in enumerate(self._cam_list):
-                if not camera.frame_ok:
-                    cam_ok = False
-                    break
-
                 # left eye
                 if index == 0:
                     frame_left = camera.frame
@@ -99,18 +96,22 @@ class Capture(multiprocessing.Process):
 
             # build rendered frame
             rendered_frame = np.vstack(tuple([frame_right, frame_left]))
-            self._data_buffer.put(rendered_frame)
+            #self._data_buffer.put(rendered_frame)
             np.copyto(render_frame_buffer, rendered_frame)
 
             # calculate fps
             self._ctime = time.time()
             self._fps = 1/(self._ctime-self._ptime)
             self._ptime = self._ctime
-            print(self._fps)
+
+            #cv2.imshow("render", rendered_frame)
+            #if cv2.waitKey(30) & 0xFF == ord('q'):
+            #    break
+
 
         # stop opencv stream
-        for camera in self._cam_list:
-            camera.cap.release()
+        #for camera in self._cam_list:
+        #    camera.cap.release()
         render_shared_memory.close()
         render_shared_memory.unlink()
 
@@ -118,8 +119,8 @@ class Capture(multiprocessing.Process):
 # demo code to run this separately
 if __name__ == "__main__":
     # start create list of cameras
-    cam_left = Camera(device=2, resolution=(1280,720), name="left_eye")
-    cam_right = Camera(device=0, resolution=(1280,720), name="right_eye")
+    cam_left = Camera(device=2, resolution=(1280,720))
+    cam_right = Camera(device=0, resolution=(1280,720))
     cameras = [cam_left, cam_right]
 
     # create capture session
