@@ -22,9 +22,7 @@ ROTATION_TYPES = Literal[
    Capture class that combines camera stream from N cameras into one buffer 
 """
 class Capture():
-#class Capture(multiprocessing.Process):
     def __init__(self):
-        #super().__init__()
         self._cam_list: List[Camera] = []
         self._rotation = None
         self._memory = "camera"
@@ -33,6 +31,9 @@ class Capture():
         self._ctime = 0
         self._ptime = 0
         self._fps = 0
+
+        # data
+        self._rendered_frame = None
 
     def run(self, cameras: List[Camera], rotation: ROTATION_TYPES = None):
         # do some setup
@@ -88,9 +89,8 @@ class Capture():
                         frame_right = cv2.rotate(frame_right, self._rotation)
 
             # build rendered frame
-            rendered_frame = np.vstack(tuple([frame_right, frame_left]))
-            #self._data_buffer.put(rendered_frame)
-            np.copyto(render_frame_buffer, rendered_frame)
+            self._rendered_frame = np.vstack(tuple([frame_right, frame_left]))
+            np.copyto(render_frame_buffer, self._rendered_frame)
 
             # calculate fps
             self._ctime = time.time()
