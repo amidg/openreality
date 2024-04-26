@@ -65,6 +65,7 @@ class Demo(ShowBase):
         return Task.cont
 
 
-def main():
+# demo code to run this separately
+if __name__ == "__main__":
     game = Demo()
     game.run()
