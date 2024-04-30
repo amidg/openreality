@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = sensors 
+version = "0.0.1"
+authors = [
+  { name="Dmitrii Gusev", email="amidg4x4dima@gmail.com" },
+]
+description = "Open Reality Sensors Package"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GPL-3.0-or-later",
+    "Operating System :: Linux",
+]
+
+[project.scripts]
+camera_demo = "sensors.camera:main"
+
+[project.urls]
+Homepage = "https://github.com/amidg/openreality"
+Issues = "https://github.com/amidg/openreality/issues"

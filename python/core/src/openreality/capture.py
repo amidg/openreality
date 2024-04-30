@@ -10,7 +10,7 @@ import queue
 import threading
 
 # openreality
-from camera import Camera
+from openreality.sensors.camera import Camera
 
 ROTATION_TYPES = Literal[
     cv2.ROTATE_90_CLOCKWISE,
