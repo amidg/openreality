@@ -99,8 +99,8 @@ class Camera(threading.Thread):
 if __name__ == "__main__":
     crop_area = (0,720,320,960)
     resolution = (1280,720)
-    test_cam1 = Camera(device=0, resolution=resolution, crop_area=crop_area)
+    test_cam1 = Camera(device=3, resolution=resolution, crop_area=crop_area)
     test_cam1.start()
 
-    test_cam2 = Camera(device=3, resolution=resolution, crop_area=crop_area)
-    test_cam2.start()
+    #test_cam2 = Camera(device=3, resolution=resolution, crop_area=crop_area)
+    #test_cam2.start()
