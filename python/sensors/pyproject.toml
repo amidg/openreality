@@ -14,7 +14,7 @@ build-backend = "setuptools.build_meta"
 # There are some restrictions on what makes a valid project name
 # specification here:
 # https://packaging.python.org/specifications/core-metadata/#name
-name = "sampleproject"  # REQUIRED, is the only field that cannot be marked as dynamic.
+name = "openreality.sensors"  # REQUIRED, is the only field that cannot be marked as dynamic.
 version = "0.0.1"
 description = "Open Reality sensor package that contains all kinds of cameras and sensors"
 readme = "README.md"
@@ -36,7 +36,7 @@ classifiers = [
 
   # Indicate who your project is intended for
   "Intended Audience :: Developers",
-  "Topic :: Software Development :: Build Tools",
+  "Topic :: Software Development :: Hardware Interaction",
 
   # Pick your license as you wish
   "License :: OSI Approved :: GPL-3.0-or-later",
@@ -73,4 +73,4 @@ Homepage = "https://github.com/amidg/openreality"
 Issues = "https://github.com/amidg/openreality/issues"
 
 [project.scripts]
-camera_demo = "sensors.camera:main"
+camera_demo = "openreality.sensors.camera:main"

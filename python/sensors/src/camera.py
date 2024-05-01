@@ -121,7 +121,7 @@ if __name__ == "__main__":
     # camera setup
     crop_area = (0,720,320,960) # y0,y1,x0,x1
     resolution = (1280,720)
-    cam_left = Camera(device=3, resolution=resolution, crop_area=crop_area)
+    cam_left = Camera(device=0, resolution=resolution, crop_area=crop_area)
 
     # window
     #cv2.namedWindow("render", cv2.WINDOW_NORMAL)

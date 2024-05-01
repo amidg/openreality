@@ -10,7 +10,7 @@ import queue
 import threading
 
 # openreality
-from camera import Camera
+from openreality.sensors.camera import Camera
 
 ROTATION_TYPES = Literal[
     cv2.ROTATE_90_CLOCKWISE,
@@ -21,22 +21,13 @@ ROTATION_TYPES = Literal[
 """
    Capture class that combines camera stream from N cameras into one buffer 
 """
-class Capture():
-    def __init__(self):
+class Capture(threading.Thread):
+    def __init__(self, cameras: List[Camera], rotation: ROTATION_TYPES = None):
+        # do some setup
+        super().__init__()
+        self._cam_list = cameras
         self._rotation = None
         self._memory = "camera"
-        
-        # time
-        self._ctime = 0
-        self._ptime = 0
-        self._fps = 0
-
-        # data
-        self._rendered_frame = None
-        self._data_buffer = queue.SimpleQueue()
-
-    def run(self, cameras: List[Camera], rotation: ROTATION_TYPES = None):
-        # do some setup
         if rotation is not None:
             try:
                 assert rotation in get_args(ROTATION_TYPES)
@@ -44,12 +35,24 @@ class Capture():
             except AssertionError:
                 # TODO: add logger handler
                 print(f"Incorrect rotation requested {rotation}: must be cv2.ROTATE_XX_YY type")
+        
+        # time
+        self._ctime = 0
+        self._ptime = 0
+        self._fps = 0
 
-        # start cameras
-        self._cam_list = cameras
-        #for cam in self._cam_list:
-        #    cam.start()
+        # data
+        self._frame = None
 
+    @property
+    def frame(self):
+        return self._frame
+
+    @property
+    def fps(self):
+        return self._fps
+
+    def run(self):
         # wait for all cams to start
         cam_left = self._cam_list[0]
         cam_right = self._cam_list[1]
@@ -90,9 +93,8 @@ class Capture():
                         frame_right = cv2.rotate(frame_right, self._rotation)
 
             # build rendered frame
-            self._rendered_frame = np.vstack(tuple([frame_right, frame_left]))
-            self._data_buffer.put(self._rendered_frame)
-            np.copyto(render_frame_buffer, self._rendered_frame)
+            self._frame = np.vstack(tuple([frame_right, frame_left]))
+            np.copyto(render_frame_buffer, self._frame)
 
             # calculate fps
             self._ctime = time.time()
@@ -115,6 +117,5 @@ if __name__ == "__main__":
 
     # create capture session
     # There is no need to start cameras one by one because when object is created, capture is automatically started
-    capture = Capture()
-    capture_session = threading.Thread(target=capture.run, args=(cameras, cv2.ROTATE_90_CLOCKWISE,))
-    capture_session.start()
+    capture = Capture(cameras=cameras, rotation=cv2.ROTATE_90_CLOCKWISE)
+    capture.start()
