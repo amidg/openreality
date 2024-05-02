@@ -5,7 +5,7 @@ from typing import Tuple
 import threading
 from enum import Enum
 
-class DeviceType(Enum):
+class CameraDriver(Enum):
     V4L2 = 1
     GST = 2
     JETSON = 3 # nvidia specific hardware acceleration
@@ -21,7 +21,7 @@ class Camera():
         resolution: Tuple[int, int],
         crop_area: Tuple[int, int, int, int], # y0,y1,x0,x1
         fps: float = 30,
-        driver: DeviceType = DeviceType.V4L2
+        driver: CameraDriver = CameraDriver.V4L2
     ):
         # camera parameters
         self._device = device
@@ -40,7 +40,7 @@ class Camera():
 
         # start capture
         self._cap: cv2.VideoCapture = None
-        if driver == DeviceType.V4L2:
+        if driver == CameraDriver.V4L2:
             # V4L2 is more resource friendly because it does not spawn another gst process inside it
             # use it for non-Nvidia devices
             self._cap = cv2.VideoCapture(f"/dev/video{self._device}", cv2.CAP_V4L2)
@@ -48,14 +48,14 @@ class Camera():
             self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._resolution[0])
             self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._resolution[1])
             self._cap.set(cv2.CAP_PROP_FPS, self._fps)
-        elif driver == DeviceType.GST:
+        elif driver == CameraDriver.GST:
             self._gst_cmd = (
                 f"gst-launch-1.0 v4l2src device=/dev/video{self._device} ! "
                 f"image/jpeg,width={self._resolution[0]},height={self._resolution[1]},framerate={self._fps}/1 ! "
                 f"jpegdec ! videoconvert ! queue ! appsink drop=True sync=False"
             )
             self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
-        elif driver == DeviceType.JETSON:
+        elif driver == CameraDriver.JETSON:
             RaiseError("Jetson not implemented yet, bye :)")
 
     @property

@@ -14,7 +14,7 @@ build-backend = "setuptools.build_meta"
 # There are some restrictions on what makes a valid project name
 # specification here:
 # https://packaging.python.org/specifications/core-metadata/#name
-name = "openreality.sensors"  # REQUIRED, is the only field that cannot be marked as dynamic.
+name = "openreality-sensors"  # REQUIRED, is the only field that cannot be marked as dynamic.
 version = "0.0.1"
 description = "Open Reality sensor package that contains all kinds of cameras and sensors"
 readme = "README.md"
