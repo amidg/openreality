@@ -1,71 +1,47 @@
-import sys
-from math import pi, sin, cos
-
+import cv2
+import panda3d
 from direct.showbase.ShowBase import ShowBase
-from direct.actor.Actor import Actor
-from direct.task import Task
-from direct.interval.IntervalGlobal import Sequence
-from panda3d.core import Point3
+from multiprocessing import shared_memory
+panda3d.core.load_prc_file_data("", "show-frame-rate-meter #t")
+panda3d.core.load_prc_file_data("", "sync-video #f")
 
+# openreality
+from openreality.core.capture import Capture
+from openreality.sensors.camera import Camera
 
-class Demo(ShowBase):
-    def __init__(self):
-        ShowBase.__init__(self)
+# start create list of cameras
+crop_area = (0,720,320,960)
+resolution = (1280,720)
+cameras = [
+    Camera(device=3, resolution=resolution, crop_area=crop_area), # left cam
+    Camera(device=1, resolution=resolution, crop_area=crop_area), # right cam
+]
+capture = Capture(cameras=cameras, rotation=cv2.ROTATE_90_CLOCKWISE)
+capture.start()
 
-        # Disabling the mouse allows you to
-        # reposition the camera in code
-        self.disableMouse()
+# game
+base = ShowBase()
 
-        # Pressing escape will close the game
-        # All input commands are handled this way
-        self.accept('escape', sys.exit)
+# generate a frame geometry to apply the camera texture to
+cardmaker = panda3d.core.CardMaker("openreality")
+cardmaker.set_frame(-base.win.get_x_size(), base.win.get_x_size(), -base.win.get_y_size(), base.win.get_y_size())
+frame = panda3d.core.NodePath(cardmaker.generate())
+frame.set_scale(frame.get_scale()/ base.win.get_y_size())
+frame.set_r(180)
+frame.flatten_light() # apply scale
+frame.reparent_to(aspect2d)
 
-        # Load the environment model.
-        self.scene = self.loader.loadModel("models/environment")
+# camera texture
+cv_camera_frame_texture = panda3d.core.Texture()
+cv_camera_frame_texture.setup_2d_texture(720, 1280, panda3d.core.Texture.T_unsigned_byte, panda3d.core.Texture.F_rgb8)
+frame.set_texture(cv_camera_frame_texture, 1)
 
-        # Reparent the model to render.
-        self.scene.reparentTo(self.render)
+def update_usb_camera_frame(task):
+    if capture.buffer_ready:
+        cv_camera_frame_texture.set_ram_image(capture.frame)
+	
+# tasks
+base.task_mgr.do_method_later(1000/60*0.001, update_usb_camera_frame, "update_usb_camera_frame")
 
-        # Apply scale and position transforms on the model.
-        self.scene.setScale(0.25, 0.25, 0.25)
-        self.scene.setPos(-8, 42, -2)
-
-        self.taskMgr.add(self.spinCameraTask, "SpinCameraTask")
-
-        self.pandaActor = Actor("models/panda-model",
-                                {"walk": "models/panda-walk4"})
-        self.pandaActor.setScale(0.005, 0.005, 0.005)
-        self.pandaActor.reparentTo(self.render)
-        self.pandaActor.loop("walk")
-
-        # Create the four lerp intervals needed for the panda to
-        # walk back and forth.
-        posInterval1 = self.pandaActor.posInterval(13,
-                                                   Point3(0, -10, 0),
-                                                   startPos=Point3(0, 10, 0))
-        posInterval2 = self.pandaActor.posInterval(13,
-                                                   Point3(0, 10, 0),
-                                                   startPos=Point3(0, -10, 0))
-        hprInterval1 = self.pandaActor.hprInterval(3,
-                                                   Point3(180, 0, 0),
-                                                   startHpr=Point3(0, 0, 0))
-        hprInterval2 = self.pandaActor.hprInterval(3,
-                                                   Point3(0, 0, 0),
-                                                   startHpr=Point3(180, 0, 0))
-
-        self.pandaPace = Sequence(posInterval1, hprInterval1,
-                                  posInterval2, hprInterval2,
-                                  name="pandaPace")
-
-    def spinCameraTask(self, task):
-        angleDegrees = task.time * 8
-        angleRadians = angleDegrees * (pi / 180.0)
-        self.camera.setPos(20 * sin(angleRadians), -20 * cos(angleRadians), 3)
-        self.camera.setHpr(angleDegrees, 0, 0)
-        return Task.cont
-
-
-# demo code to run this separately
-if __name__ == "__main__":
-    game = Demo()
-    game.run()
+# run main game
+base.run()

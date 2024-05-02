@@ -78,6 +78,10 @@ class Capture(threading.Thread):
         return self._frame_buffer.get()
 
     @property
+    def buffer_ready(self):
+        return not self._frame_buffer.empty()
+
+    @property
     def fps(self):
         return self._fps
 
