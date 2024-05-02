@@ -5,6 +5,7 @@ from typing import Tuple
 import threading
 from enum import Enum
 
+# camera driver
 class CameraDriver(Enum):
     V4L2 = 1
     GST = 2

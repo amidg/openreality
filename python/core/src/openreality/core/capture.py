@@ -54,8 +54,8 @@ class Capture(threading.Thread):
 
         # data
         self._frame = None
-        self._frame_buffer = queue.SimpleQueue()
-        self._memory = "/capture"
+        self._frame_buffer = queue.SimpleQueue() # causes massive delay inside the application that reads it
+        self._memory = "capture"
 
         # create render buffer from two front cameras
         frame_left = self._left_cam.test_frame
@@ -77,14 +77,14 @@ class Capture(threading.Thread):
         )
 
         # left cam thread
-        self._left_buffer = queue.Queue(maxsize=10)
-        self._left_thread = threading.Thread(target=self._left_capture)
-        self._left_thread.start()
+        #self._left_buffer = queue.Queue(maxsize=10)
+        #self._left_thread = threading.Thread(target=self._left_capture)
+        #self._left_thread.start()
 
-        # right cam thread
-        self._right_buffer = queue.Queue(maxsize=10)
-        self._right_thread = threading.Thread(target=self._right_capture)
-        self._right_thread.start()
+        ## right cam thread
+        #self._right_buffer = queue.Queue(maxsize=10)
+        #self._right_thread = threading.Thread(target=self._right_capture)
+        #self._right_thread.start()
 
     @property
     def frame(self):
@@ -92,7 +92,7 @@ class Capture(threading.Thread):
         #return self._frame_buffer.get()
 
     @property
-    def buffer_ready(self):
+    def ready(self):
         return np.any(self._frame)
         #return not self._frame_buffer.empty()
 
@@ -131,25 +131,39 @@ class Capture(threading.Thread):
             print("waiting to start cameras")
 
         # stream video to renderer
+        left_frame = None
+        right_frame = None
         while True:
+            if self._left_cam.frame_ready and self._right_cam.frame_ready:
+                # get frames in somewhat synced manner
+                # TODO: create proper sync mechanism
+                left_frame = self._left_cam.frame
+                right_frame = self._right_cam.frame
+
+                # set rotation
+                if self._rotation is not None:
+                    left_frame = cv2.rotate(left_frame, self._rotation)
+                    right_frame = cv2.rotate(right_frame, self._rotation)
+                
             # if buffer is empty, we need to wait until there are frames to use
-            if self._left_buffer.empty() or self._right_buffer.empty():
-                continue
+            #if self._left_buffer.empty() or self._right_buffer.empty():
+            #    continue
 
-            # build rendered frame
-            self._frame = np.hstack(tuple([self._right_buffer.get(), self._left_buffer.get()]))
-            self._frame_buffer.put(self._frame)
-            np.copyto(self._shm_frame_buffer, self._frame)
+                # build rendered frame
+                self._frame = np.hstack(tuple([right_frame, left_frame]))
+                #self._frame = np.hstack(tuple([self._right_buffer.get(), self._left_buffer.get()]))
+                #self._frame_buffer.put(self._frame)
+                np.copyto(self._shm_frame_buffer, self._frame)
 
-            # calculate fps
-            self._ctime = time.time()
-            self._fps = 1/(self._ctime-self._ptime)
-            self._ptime = self._ctime
-            print(f"FPS Capture / Left / Right: {self._fps} / {self._left_cam.fps} / {self._right_cam.fps}")
+                # calculate fps
+                self._ctime = time.time()
+                self._fps = 1/(self._ctime-self._ptime)
+                self._ptime = self._ctime
+                print(f"FPS Capture / Left / Right: {self._fps} / {self._left_cam.fps} / {self._right_cam.fps}")
 
             # empty queue to avoid RAM overflow
-            if self._frame_buffer.qsize() > 100:
-                self._flush_buffer()
+            #if self._frame_buffer.qsize() > 100:
+            #    self._flush_buffer()
         
 # demo code to run this separately
 if __name__ == "__main__":
