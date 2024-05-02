@@ -2,6 +2,8 @@ import cv2
 import panda3d
 from direct.showbase.ShowBase import ShowBase
 from multiprocessing import shared_memory
+
+# window setup
 panda3d.core.load_prc_file_data("", "show-frame-rate-meter #t")
 panda3d.core.load_prc_file_data("", "sync-video #f")
 
@@ -21,13 +23,19 @@ capture.start()
 
 # game
 base = ShowBase()
+wp = WindowProperties()
+wp.setFullscreen(1)
+wp.setSize(1024, 768)
+base.openMainWindow()
+base.win.requestProperties(wp)
+base.graphicsEngine.openWindows()
 
 # generate a frame geometry to apply the camera texture to
 cardmaker = panda3d.core.CardMaker("openreality")
 cardmaker.set_frame(-base.win.get_x_size(), base.win.get_x_size(), -base.win.get_y_size(), base.win.get_y_size())
 frame = panda3d.core.NodePath(cardmaker.generate())
 frame.set_scale(frame.get_scale()/ base.win.get_y_size())
-frame.set_r(180)
+frame.set_r(90)
 frame.flatten_light() # apply scale
 frame.reparent_to(aspect2d)
 
@@ -39,6 +47,7 @@ frame.set_texture(cv_camera_frame_texture, 1)
 def update_usb_camera_frame(task):
     if capture.buffer_ready:
         cv_camera_frame_texture.set_ram_image(capture.frame)
+    return task.again
 	
 # tasks
 base.task_mgr.do_method_later(1000/60*0.001, update_usb_camera_frame, "update_usb_camera_frame")
