@@ -25,9 +25,9 @@ class Capture(threading.Thread):
     def __init__(self, cameras: List[Camera], rotation: ROTATION_TYPES = None):
         # do some setup
         super().__init__()
-        self._cam_list = cameras
+        self._left_cam = cameras[0]
+        self._right_cam = cameras[1]
         self._rotation = None
-        self._memory = "camera"
         if rotation is not None:
             try:
                 assert rotation in get_args(ROTATION_TYPES)
@@ -35,7 +35,7 @@ class Capture(threading.Thread):
             except AssertionError:
                 # TODO: add logger handler
                 print(f"Incorrect rotation requested {rotation}: must be cv2.ROTATE_XX_YY type")
-        
+
         # time
         self._ctime = 0
         self._ptime = 0
@@ -44,15 +44,31 @@ class Capture(threading.Thread):
         # data
         self._frame = None
         self._frame_buffer = queue.SimpleQueue()
+        self._memory = "/capture"
+
+        # create render buffer from two front cameras
+        frame_left = self._left_cam.test_frame
+        frame_right = self._right_cam.test_frame
+        self._shm = shared_memory.SharedMemory(
+            create=True,
+            size=(frame_left.nbytes+frame_right.nbytes),
+            name=self._memory
+        )
+        render_shape = tuple([frame_right.shape[0] + frame_left.shape[0], frame_left.shape[1], frame_left.shape[2]])
+        if self._rotation in [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE]:
+            render_shape = tuple([frame_right.shape[1] + frame_left.shape[1], frame_left.shape[0], frame_left.shape[2]])
+        self._shm_frame_buffer = np.ndarray(
+            render_shape,
+            dtype=np.uint8,
+            buffer=self._shm.buf
+        )
 
         # left cam thread
-        self._left_cam = self._cam_list[0]
         self._left_buffer = queue.Queue(maxsize=10)
         self._left_thread = threading.Thread(target=self._left_capture)
         self._left_thread.start()
 
         # right cam thread
-        self._right_cam = self._cam_list[1]
         self._right_buffer = queue.Queue(maxsize=10)
         self._right_thread = threading.Thread(target=self._right_capture)
         self._right_thread.start()
@@ -104,6 +120,7 @@ class Capture(threading.Thread):
             # build rendered frame
             self._frame = np.vstack(tuple([self._right_buffer.get(), self._left_buffer.get()]))
             self._frame_buffer.put(self._frame)
+            np.copyto(self._shm_frame_buffer, self._frame)
 
             # calculate fps
             self._ctime = time.time()
