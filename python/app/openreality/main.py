@@ -1,11 +1,24 @@
-import cv2
-import panda3d
 from direct.showbase.ShowBase import ShowBase
-from multiprocessing import shared_memory
+from direct.showbase.DirectObject import DirectObject
+from direct.gui.DirectGui import *
+from direct.interval.IntervalGlobal import *
+from panda3d.core import lookAt
+from panda3d.core import GeomVertexFormat, GeomVertexData
+from panda3d.core import Geom, GeomTriangles, GeomVertexWriter
+from panda3d.core import Texture, GeomNode
+from panda3d.core import PerspectiveLens
+from panda3d.core import CardMaker
+from panda3d.core import Light, Spotlight
+from panda3d.core import TextNode
+from panda3d.core import LVector3
+import sys
+import os
 
-# window setup
+# fullscreen attempt
 panda3d.core.load_prc_file_data("", "show-frame-rate-meter #t")
 panda3d.core.load_prc_file_data("", "sync-video #f")
+panda3d.core.load_prc_file_data("", "win-size 2560 1440")
+panda3d.core.load_prc_file_data("", "fullscreen 1")
 
 # openreality
 from openreality.core.capture import Capture
@@ -18,17 +31,11 @@ cameras = [
     Camera(device=3, resolution=resolution, crop_area=crop_area), # left cam
     Camera(device=1, resolution=resolution, crop_area=crop_area), # right cam
 ]
-capture = Capture(cameras=cameras, rotation=cv2.ROTATE_90_CLOCKWISE)
+capture = Capture(cameras=cameras)
 capture.start()
 
 # game
 base = ShowBase()
-wp = WindowProperties()
-wp.setFullscreen(1)
-wp.setSize(1024, 768)
-base.openMainWindow()
-base.win.requestProperties(wp)
-base.graphicsEngine.openWindows()
 
 # generate a frame geometry to apply the camera texture to
 cardmaker = panda3d.core.CardMaker("openreality")
