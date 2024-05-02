@@ -1,28 +1,39 @@
 import cv2
 import numpy as np
 import time
-from typing import Literal, List, Dict, Tuple, Union, get_args
+from typing import Literal, List, Dict, Tuple, Union
 
 # multiprocessing
 import multiprocessing
 from multiprocessing import shared_memory
 import queue
 import threading
+from enum import Enum, EnumMeta
 
 # openreality
 from openreality.sensors.camera import Camera
 
-ROTATION_TYPES = Literal[
-    cv2.ROTATE_90_CLOCKWISE,
-    cv2.ROTATE_180,
-    cv2.ROTATE_90_COUNTERCLOCKWISE
-]
+class MetaEnum(EnumMeta):
+    def __contains__(cls, item):
+        try:
+            cls(item)
+        except ValueError:
+            return False
+        return True
+
+class BaseEnum(Enum, metaclass=MetaEnum):
+    pass
+
+class CameraRotation(BaseEnum):
+    ROTATE_90_CW = cv2.ROTATE_90_CLOCKWISE
+    ROTATE_180 = cv2.ROTATE_180
+    ROTATE_90_CCW = cv2.ROTATE_90_COUNTERCLOCKWISE
 
 """
    Capture class that combines camera stream from N cameras into one buffer 
 """
 class Capture(threading.Thread):
-    def __init__(self, cameras: List[Camera], rotation: ROTATION_TYPES = None):
+    def __init__(self, cameras: List[Camera], rotation: CameraRotation = None):
         # do some setup
         super().__init__()
         self._left_cam = cameras[0]
@@ -30,11 +41,11 @@ class Capture(threading.Thread):
         self._rotation = None
         if rotation is not None:
             try:
-                assert rotation in get_args(ROTATION_TYPES)
-                self._rotation = rotation
+                assert rotation in CameraRotation 
+                self._rotation = rotation.value # enum needs value
             except AssertionError:
                 # TODO: add logger handler
-                print(f"Incorrect rotation requested {rotation}: must be cv2.ROTATE_XX_YY type")
+                print(f"Incorrect rotation requested {rotation}")
 
         # time
         self._ctime = 0
@@ -77,11 +88,13 @@ class Capture(threading.Thread):
 
     @property
     def frame(self):
-        return self._frame_buffer.get()
+        return self._frame
+        #return self._frame_buffer.get()
 
     @property
     def buffer_ready(self):
-        return not self._frame_buffer.empty()
+        return np.any(self._frame)
+        #return not self._frame_buffer.empty()
 
     @property
     def fps(self):
@@ -149,5 +162,5 @@ if __name__ == "__main__":
 
     # create capture session
     # There is no need to start cameras one by one because when object is created, capture is automatically started
-    capture = Capture(cameras=cameras, rotation=cv2.ROTATE_180)
+    capture = Capture(cameras=cameras, rotation=CameraRotation.ROTATE_180)
     capture.start()

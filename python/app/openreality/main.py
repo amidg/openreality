@@ -13,6 +13,8 @@ from panda3d.core import TextNode
 from panda3d.core import LVector3
 import sys
 import os
+import numpy as np
+from multiprocessing import shared_memory
 
 # fullscreen attempt
 panda3d.core.load_prc_file_data("", "show-frame-rate-meter #t")
@@ -21,18 +23,23 @@ panda3d.core.load_prc_file_data("", "win-size 2560 1440")
 panda3d.core.load_prc_file_data("", "fullscreen 1")
 
 # openreality
-from openreality.core.capture import Capture
+from openreality.core.capture import Capture, CameraRotation
 from openreality.sensors.camera import Camera
 
 # start create list of cameras
 crop_area = (0,720,320,960)
 resolution = (1280,720)
 cameras = [
-    Camera(device=3, resolution=resolution, crop_area=crop_area), # left cam
-    Camera(device=1, resolution=resolution, crop_area=crop_area), # right cam
+    Camera(device=1, resolution=resolution, crop_area=crop_area), # left cam
+    Camera(device=3, resolution=resolution, crop_area=crop_area), # right cam
 ]
 capture = Capture(cameras=cameras)
 capture.start()
+
+# shared memory
+frame_shape = (resolution[0], resolution[1], 3)
+shm = shared_memory.SharedMemory(name="capture")
+frame = np.ndarray(frame_shape, dtype=np.uint8, buffer=shm.buf)
 
 # game
 base = ShowBase()
@@ -42,18 +49,25 @@ cardmaker = panda3d.core.CardMaker("openreality")
 cardmaker.set_frame(-base.win.get_x_size(), base.win.get_x_size(), -base.win.get_y_size(), base.win.get_y_size())
 frame = panda3d.core.NodePath(cardmaker.generate())
 frame.set_scale(frame.get_scale()/ base.win.get_y_size())
-frame.set_r(90)
+frame.set_r(0)
 frame.flatten_light() # apply scale
 frame.reparent_to(aspect2d)
 
 # camera texture
 cv_camera_frame_texture = panda3d.core.Texture()
-cv_camera_frame_texture.setup_2d_texture(720, 1280, panda3d.core.Texture.T_unsigned_byte, panda3d.core.Texture.F_rgb8)
+cv_camera_frame_texture.setup_2d_texture(
+    resolution[0],
+    resolution[1],
+    panda3d.core.Texture.T_unsigned_byte,
+    panda3d.core.Texture.F_rgb8
+)
 frame.set_texture(cv_camera_frame_texture, 1)
 
 def update_usb_camera_frame(task):
     if capture.buffer_ready:
         cv_camera_frame_texture.set_ram_image(capture.frame)
+    #if np.any(frame): # using shared memory
+    #    cv_camera_frame_texture.set_ram_image(frame)
     return task.again
 	
 # tasks
