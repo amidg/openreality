@@ -57,7 +57,19 @@ class Camera():
             )
             self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
         elif driver == CameraDriver.JETSON:
-            RaiseError("Jetson not implemented yet, bye :)")
+            self._gst_cmd = (
+                f"nvarguscamerasrc sensor-id={self._device} ! "
+                f"video/x-raw(memory:NVMM),"
+                f"width={self._resolution[0]}, height={self._resolution[1]}, "
+                f"format=(string)NV12, framerate{self._fps}/1 ! "                                   f"nvvidconv ! " # you can add rotation here
+                f"video/x-raw,"
+                f"width={self._resolution[0]}, height={self._resolution[1]},"
+                f"format=(string)BGRx ! "
+                f"videoconvert ! "
+                f"video/x-raw, format=(string)BGR ! "
+                f"appsink max-buffers=1 drop=True"
+            )
+            self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
     @property
     def opened(self):
@@ -121,12 +133,12 @@ class Camera():
 if __name__ == "__main__":
     # camera setup
     crop_area = (0,720,320,960) # y0,y1,x0,x1
-    resolution = (1280,720)
+    resolution = (1080,720)
     cam_left = Camera(device=0, resolution=resolution, crop_area=crop_area)
 
     # window
-    #cv2.namedWindow("render", cv2.WINDOW_NORMAL)
-    #cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cv2.namedWindow("render", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     # capture
     while True:
@@ -136,9 +148,9 @@ if __name__ == "__main__":
 
         # render window
         print(cam_left.fps)
-        #cv2.imshow("render", frame)    
-        #if cv2.waitKey(1) & 0xFF == ord('q'):
-        #    break
+        cv2.imshow("render", frame)    
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
     cam_left.release()
     cv2.destroyAllWindows()
