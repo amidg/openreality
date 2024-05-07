@@ -1,0 +1,22 @@
+# this image is useful when you want to build opencv 4.9.0.80 for Jetson Nano native Python version
+FROM ubuntu:bionic
+
+# ------------------ Ubuntu Setup ------------------ #
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt update -qy && apt upgrade -qy
+RUN apt install -y python3 python3-venv python3-pip python3-dev python3-setuptools python3-distutils
+RUN apt install -y wget curl git vim
+
+# install gstreamer components
+RUN apt-get install -qy libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio
+
+# install QT components for windows
+RUN apt-get install -qy qtcreator qtcreator-data qtcreator-doc qtbase5-examples qtbase5-doc-html qtbase5-dev qtbase5-private-dev cmake
+
+# update pip
+RUN python3 -m pip install -U pip
+
+# ------------------ Setup OpenCV ------------------ #
+COPY . /app
+WORKDIR /app
+ENTRYPOINT ["bash"]
