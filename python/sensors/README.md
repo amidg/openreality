@@ -1,3 +1,24 @@
+### Nvidia based camera sync and output
+Basic streaming to the screen
+```
+ gst-launch-1.0 nvarguscamerasrc sensor-id=0 silent=false ! "video/x-raw(memory:NVMM), width=(int)1920, height=(int)1080, format=(string)NV12, framerate=(fraction)30/1" ! nvvidconv flip-method=2 ! "video/x-raw,width=1920,height=1080"  ! nveglglessink sync=false
+```
+
+Dual Camera with sync:
+```
+gst-launch-1.0 \
+multiqueue max-size-buffers=1 name=mqueue \
+nvarguscamerasrc sensor-id=0 silent=false ! “video/x-raw(memory:NVMM), width=(int)1920, height=(int)1080, format=(string)NV12, framerate=(fraction)30/1” ! mqueue.sink_1 \
+nvarguscamerasrc sensor-id=1 silent=false ! “video/x-raw(memory:NVMM), width=(int)1920, height=(int)1080, format=(string)NV12, framerate=(fraction)30/1” ! mqueue.sink_2 \
+mqueue.src_1 ! nvvidconv flip-method=2 ! "video/x-raw,width=1920,height=1080" ! queue ! videomux.sink_0 \
+mqueue.src_2 ! nvvidconv flip-method=2 ! "video/x-raw,width=1920,height=1080" ! queue ! videomux.sink_1 \
+videomixer name=videomux sink_1::ypos=1920 ! video/x-raw,width=1080,height=3840 ! nveglglessink sync=false
+```
+
+gst-launch-1.0 multiqueue max-size-buffers=1 name=mqueue nvarguscamerasrc sensor-id=0 silent=false ! video/x-raw(memory:NVMM), width=(int)1920, height=(int)1080, format=(string)NV12, framerate=(fraction)30/1 ! mqueue.sink_1 nvarguscamerasrc sensor-id=1 silent=false ! video/x-raw(memory:NVMM), width=(int)1920, height=(int)1080, format=(string)NV12, framerate=(fraction)30/1 ! mqueue.sink_2 mqueue.src_1 ! nvvidconv flip-method=2 ! "video/x-raw,width=1920,height=1080" ! queue ! videomux.sink_0 mqueue.src_2 ! nvvidconv flip-method=2 ! "video/x-raw,width=1920,height=1080" ! queue ! videomux.sink_1 videomixer name=videomux sink_1::ypos=1920 ! video/x-raw,width=1080,height=3840 ! nveglglessink sync=false
+
+
+
 DISPLAY=:0 gst-launch-1.0 tee name=stream v4l2src device=/dev/video0 ! image/jpeg,width=1920,height=1080,framerate=30/1 ! jpegparse ! jpegdec ! xvimagesink stream. v4l2src device=/dev/video2 ! image/jpeg,width=1920,height=1080,framerate=30/1 ! jpegparse ! jpegdec ! xvimagesink stream.
 
 DISPLAY=:0 gst-launch-1.0 v4l2src device=/dev/video0 ! image/jpeg,width=1920,height=1080,framerate=30/1 ! jpegparse ! jpegdec ! xvimagesink
@@ -73,8 +94,6 @@ v4l2src device=/dev/video2 ! image/jpeg,width=1280,height=720,framerate=30/1 ! m
 mqueue.src_1 ! jpegdec ! videoconvert ! video/x-raw,format=RGB ! videoflip method=clockwise ! queue ! videomux.sink_0 \
 mqueue.src_2 ! jpegdec ! videoconvert ! video/x-raw,format=RGB ! videoflip method=clockwise ! queue ! videomux.sink_1 \
 videomixer name=videomux sink_1::ypos=1280 ! video/x-raw,width=720,height=2560 ! fdsink
-
-
 
 DISPLAY=:0 gst-launch-1.0 \
 multiqueue max-size-buffers=1 name=mqueue \

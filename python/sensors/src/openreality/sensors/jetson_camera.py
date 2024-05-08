@@ -6,7 +6,7 @@ import threading
 from enum import Enum
 
 """
-    Camera class based on thread
+    Camera class designed to read camera using Jetson API
     It allows to start camera with specified resolution and FPS
 """
 class Camera():
@@ -33,12 +33,17 @@ class Camera():
         self._real_fps = 0
 
         # start capture
-        # V4L2 is more resource friendly because it does not spawn another gst process inside it
-        self._cap = cv2.VideoCapture(f"/dev/video{self._device}", cv2.CAP_V4L2)
-        self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._resolution[0])
-        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._resolution[1])
-        self._cap.set(cv2.CAP_PROP_FPS, self._fps)
+        self._gst_cmd = (
+            f"nvarguscamerasrc sensor-id={self._device} ! "
+            f"video/x-raw(memory:NVMM),"
+            f"width={self._resolution[0]}, height={self._resolution[1]}, "
+            f"format=(string)NV12, framerate{self._fps}/1 ! "
+            f"nvvidconv ! " # you can add rotation here
+            f"video/x-raw,format=(string)BGR,"
+            f"width={self._resolution[0]}, height={self._resolution[1]},"
+            f"appsink max-buffers=1 drop=True"
+        )
+        self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
     @property
     def opened(self):
@@ -102,7 +107,7 @@ class Camera():
 if __name__ == "__main__":
     # camera setup
     crop_area = (0,720,320,960) # y0,y1,x0,x1
-    resolution = (1080,720)
+    resolution = (1920,1080)
     cam_left = Camera(device=0, resolution=resolution, crop_area=crop_area)
 
     # window
