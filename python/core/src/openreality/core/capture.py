@@ -1,17 +1,17 @@
 import cv2
 import numpy as np
 import time
-from typing import Literal, List, Dict, Tuple, Union
+from typing import List, Dict, Tuple, Union
 
 # multiprocessing
 import multiprocessing
-from multiprocessing import shared_memory
+#from multiprocessing import shared_memory
 import queue
 import threading
 from enum import Enum, EnumMeta
 
 # openreality
-from openreality.sensors.camera import Camera
+from openreality.sensors.jetson_camera import Camera
 
 class MetaEnum(EnumMeta):
     def __contains__(cls, item):
@@ -54,27 +54,27 @@ class Capture(threading.Thread):
 
         # data
         self._frame = None
-        self._frame_buffer = queue.SimpleQueue() # causes massive delay inside the application that reads it
+        self._frame_buffer = queue.Queue() # causes massive delay inside the application that reads it
         self._memory = "capture"
 
         # create render buffer from two front cameras
-        frame_left = self._left_cam.test_frame
-        frame_right = self._right_cam.test_frame
-        self._shm = shared_memory.SharedMemory(
-            create=True,
-            size=(frame_left.nbytes+frame_right.nbytes),
-            name=self._memory
-        )
+        #frame_left = self._left_cam.test_frame
+        #frame_right = self._right_cam.test_frame
+        #self._shm = shared_memory.SharedMemory(
+        #    create=True,
+        #    size=(frame_left.nbytes+frame_right.nbytes),
+        #    name=self._memory
+        #)
 
-        render_shape = tuple([frame_right.shape[0], frame_right.shape[1] + frame_left.shape[1], frame_left.shape[2]])
-        #render_shape = tuple([frame_right.shape[0] + frame_left.shape[0], frame_left.shape[1], frame_left.shape[2]])
-        #if self._rotation in [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE]:
-        #    render_shape = tuple([frame_right.shape[1] + frame_left.shape[1], frame_left.shape[0], frame_left.shape[2]])
-        self._shm_frame_buffer = np.ndarray(
-            render_shape,
-            dtype=np.uint8,
-            buffer=self._shm.buf
-        )
+        #render_shape = tuple([frame_right.shape[0], frame_right.shape[1] + frame_left.shape[1], frame_left.shape[2]])
+        ##render_shape = tuple([frame_right.shape[0] + frame_left.shape[0], frame_left.shape[1], frame_left.shape[2]])
+        ##if self._rotation in [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE]:
+        ##    render_shape = tuple([frame_right.shape[1] + frame_left.shape[1], frame_left.shape[0], frame_left.shape[2]])
+        #self._shm_frame_buffer = np.ndarray(
+        #    render_shape,
+        #    dtype=np.uint8,
+        #    buffer=self._shm.buf
+        #)
 
         # left cam thread
         #self._left_buffer = queue.Queue(maxsize=10)
@@ -153,7 +153,7 @@ class Capture(threading.Thread):
                 self._frame = np.hstack(tuple([right_frame, left_frame]))
                 #self._frame = np.hstack(tuple([self._right_buffer.get(), self._left_buffer.get()]))
                 #self._frame_buffer.put(self._frame)
-                np.copyto(self._shm_frame_buffer, self._frame)
+                #np.copyto(self._shm_frame_buffer, self._frame)
 
                 # calculate fps
                 self._ctime = time.time()
@@ -168,10 +168,10 @@ class Capture(threading.Thread):
 # demo code to run this separately
 if __name__ == "__main__":
     # start create list of cameras
-    crop_area = (0,720,320,960)
-    resolution = (1280,720)
-    cam_left = Camera(device=1, resolution=resolution, crop_area=crop_area)
-    cam_right = Camera(device=3, resolution=resolution, crop_area=crop_area)
+    crop_area = (0,1080,480,1440)
+    resolution = (1920, 1080)
+    cam_left = Camera(device=0, resolution=resolution, crop_area=crop_area)
+    cam_right = Camera(device=1, resolution=resolution, crop_area=crop_area)
     cameras = [cam_left, cam_right]
 
     # create capture session
