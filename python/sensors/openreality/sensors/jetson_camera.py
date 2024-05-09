@@ -34,35 +34,21 @@ class Camera():
 
         # start capture
         self._gst_cmd = (
-            # first camera
-            f"nvarguscamerasrc sensor-id=0 ! "
-            f"video/x-raw(memory:NVMM), width=1920, height=1080, format=(string)NV12, framerate=30/1 ! "
-            f"nvvidconv ! video/x-raw(memory:NVMM), format=(string)BGRx, width=1920, height=1080 ! comp.sink_0 "
-            # second camera
-            f"nvarguscamerasrc sensor-id=1 ! "
-            f"video/x-raw(memory:NVMM), width=1920, height=1080, format=(string)NV12, framerate=30/1 ! "
-            f"nvvidconv ! video/x-raw(memory:NVMM), format=(string)BGRx, width=1920, height=1080 ! comp.sink_1 "
-            # combine
-            f"nvcompositor name=comp "
-            f"sink_0::xpos=0 sink_0::ypos=0 sink_0::width=1920 sink_0::height=1080 "
-            f"sink_1::xpos=1920 sink_1::ypos=0 sink_1::width=1920 sink_1::height=1080 ! "
-            f"'video/x-raw(memory:NVMM),format=BGRx' ! nvvidconv ! 'video/x-raw,format=(string)BGRx' ! "
-            f"videoconvert ! video/x-raw, format=(string)BGR ! "
-            f"appsink max-buffers=1 drop=True"
+            f"shmsrc socket-path=/dev/shm/foo ! "
+            f"video/x-raw, width=1920, height=1080, framerate=30/1, format=BGR ! "
+            f"videoconvert ! appsink max-buffers=1 drop=True"
         )
-        
-
-#        self._gst_cmd = (
-#            f"nvarguscamerasrc sensor-id={self._device} ! "
-#            f"video/x-raw(memory:NVMM),"
-#            f"width={self._resolution[0]}, height={self._resolution[1]}, "
-#            f"format=(string)NV12, framerate{self._fps}/1 ! "
-#            f"nvvidconv flip-method=0 ! " # use 2 for 180 flip
-#            f"video/x-raw, format=(string)BGRx, "
-#            f"width={self._resolution[0]}, height={self._resolution[1]} ! "
-#            f"videoconvert ! video/x-raw, format=(string)BGR ! "
-#            f"appsink max-buffers=1 drop=True"
-#        )
+        #self._gst_cmd = (
+        #    f"nvarguscamerasrc sensor-id={self._device} ! "
+        #    f"video/x-raw(memory:NVMM),"
+        #    f"width={self._resolution[0]}, height={self._resolution[1]}, "
+        #    f"format=(string)NV12, framerate{self._fps}/1 ! "
+        #    f"nvvidconv flip-method=0 ! " # use 2 for 180 flip
+        #    f"video/x-raw, format=(string)BGRx, "
+        #    f"width={self._resolution[0]}, height={self._resolution[1]} ! "
+        #    f"videoconvert ! video/x-raw, format=(string)BGR ! "
+        #    f"appsink max-buffers=1 drop=True"
+        #)
         self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
     @property
@@ -141,8 +127,8 @@ if __name__ == "__main__":
             frame = cam_left.frame
 
         # render window
-        print(cam_left.fps)
-        cv2.imshow("render", frame)    
+            print(cam_left.fps)
+            cv2.imshow("render", frame)    
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
