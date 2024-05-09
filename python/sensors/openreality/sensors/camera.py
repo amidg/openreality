@@ -6,19 +6,19 @@ import threading
 from enum import Enum
 
 """
-    Camera class based on thread
-    It allows to start camera with specified resolution and FPS
+    Camera class allows to capture from shm device
+    This is system agnostic and can be used for any hardware
 """
 class Camera():
     def __init__(
         self,
-        device: int, # 1 for /dev/video1
+        path: str, # path to the shared memory object
         resolution: Tuple[int, int],
         crop_area: Tuple[int, int, int, int], # y0,y1,x0,x1
         fps: float = 30
     ):
         # camera parameters
-        self._device = device
+        self._shm_dev = path
         self._resolution = resolution
         self._crop_area = crop_area 
         self._fps = fps
@@ -33,12 +33,13 @@ class Camera():
         self._real_fps = 0
 
         # start capture
-        # V4L2 is more resource friendly because it does not spawn another gst process inside it
-        self._cap = cv2.VideoCapture(f"/dev/video{self._device}", cv2.CAP_V4L2)
-        self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._resolution[0])
-        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._resolution[1])
-        self._cap.set(cv2.CAP_PROP_FPS, self._fps)
+        self._gst_cmd = (
+            f"shmsrc socket-path={self._shm_dev} ! "
+            f"video/x-raw, format=(string)BGR, framerate={self._fps}/1"
+            f"width={self._resolution[0]}, height={self._resolution[1]} !"
+            f"videoconvert ! appsink max-buffers=1 drop=True"
+        )
+        self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
     @property
     def opened(self):
@@ -101,9 +102,13 @@ class Camera():
 # demo code to run this separately
 if __name__ == "__main__":
     # camera setup
-    crop_area = (0,720,320,960) # y0,y1,x0,x1
-    resolution = (1080,720)
-    cam_left = Camera(device=0, resolution=resolution, crop_area=crop_area)
+    crop_area = (0,1080,480,1440) # y0,y1,x0,x1
+    resolution = (1920,1080)
+    cam_left = Camera(
+        path="/dev/shm/cam_left",
+        resolution=resolution,
+        crop_area=crop_area
+    )
 
     # window
     cv2.namedWindow("render", cv2.WINDOW_NORMAL)
@@ -113,13 +118,12 @@ if __name__ == "__main__":
     while True:
         # get frame
         if cam_left.frame_ready:
-            frame = cam_left.frame
-
-        # render window
-        print(cam_left.fps)
-        cv2.imshow("render", frame)    
+            # get frame
+            cv2.imshow("render", cam_left.frame)    
+            # show fps
+            print(cam_left.fps)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    cam_left.release()
+    cam_left.cap.release()
     cv2.destroyAllWindows()
