@@ -25,9 +25,15 @@ sink_1::xpos=1920 sink_1::ypos=0 sink_1::width=1920 sink_1::height=1080 ! \
 'video/x-raw(memory:NVMM),format=RGBA' ! nvvidconv ! 'video/x-raw(memory:NVMM),format=(string)NV12' ! nvv4l2h265enc control-rate=0 preset-level=2 maxperf-enable=true profile=1 ! h265parse ! splitmuxsink location=capture-%05d.mkv max-size-bytes=2000000000 muxer=matroskamux -e
 ```
 
-Dual camera to appsink:
+Dual camera to shm:
 ```
- 
+gst-launch-1.0 \
+nvarguscamerasrc sensor_id=0 ! 'video/x-raw(memory:NVMM),width=1920,height=1080,framerate=30/1' ! nvvidconv flip-method=0 ! 'video/x-raw(memory:NVMM),width=1920, height=1080, format=RGBA' ! comp.sink_0 \
+nvarguscamerasrc sensor_id=1 ! 'video/x-raw(memory:NVMM),width=1920,height=1080,framerate=30/1' ! nvvidconv flip-method=0 ! 'video/x-raw(memory:NVMM),width=1920, height=1080, format=RGBA' ! comp.sink_1 \
+nvcompositor name=comp \
+sink_0::xpos=0 sink_0::ypos=0 sink_0::width=1920 sink_0::height=1080 \
+sink_1::xpos=1920 sink_1::ypos=0 sink_1::width=1920 sink_1::height=1080 ! \
+'video/x-raw(memory:NVMM),format=RGBA' ! nvvidconv ! 'video/x-raw,format=BGRx' ! videoconvert ! 'video/x-raw,format=BGR' ! shmsink socket-path=/dev/shm/camera wait-for-connection=false shm-size=20000000
 ```
 
 Sample SHMSink write and SHMSrc read:

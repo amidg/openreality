@@ -34,19 +34,23 @@ class Camera():
 
         # start capture
         self._gst_cmd = (
-            f"nvarguscamerasrc sensor_id=0 ! "
-            f"'video/x-raw(memory:NVMM),width=1920,height=1080,framerate=30/1' ! nvvidconv flip-method=0 ! "
-            f"'video/x-raw(memory:NVMM),width=1920, height=1080, format=RGBA' ! comp.sink_0 "
-            f"nvarguscamerasrc sensor_id=1 ! "
-            f"'video/x-raw(memory:NVMM),width=1920,height=1080,framerate=30/1' ! nvvidconv flip-method=0 ! "
-            f"'video/x-raw(memory:NVMM),width=1920, height=1080, format=RGBA' ! comp.sink_1 "
+            # first camera
+            f"nvarguscamerasrc sensor-id=0 ! "
+            f"video/x-raw(memory:NVMM), width=1920, height=1080, format=(string)NV12, framerate=30/1 ! "
+            f"nvvidconv ! video/x-raw(memory:NVMM), format=(string)BGRx, width=1920, height=1080 ! comp.sink_0 "
+            # second camera
+            f"nvarguscamerasrc sensor-id=1 ! "
+            f"video/x-raw(memory:NVMM), width=1920, height=1080, format=(string)NV12, framerate=30/1 ! "
+            f"nvvidconv ! video/x-raw(memory:NVMM), format=(string)BGRx, width=1920, height=1080 ! comp.sink_1 "
+            # combine
             f"nvcompositor name=comp "
             f"sink_0::xpos=0 sink_0::ypos=0 sink_0::width=1920 sink_0::height=1080 "
             f"sink_1::xpos=1920 sink_1::ypos=0 sink_1::width=1920 sink_1::height=1080 ! "
-            f"'video/x-raw(memory:NVMM),format=RGBA' ! nvvidconv ! 'video/x-raw,format=(string)BGRx' ! "
+            f"'video/x-raw(memory:NVMM),format=BGRx' ! nvvidconv ! 'video/x-raw,format=(string)BGRx' ! "
             f"videoconvert ! video/x-raw, format=(string)BGR ! "
             f"appsink max-buffers=1 drop=True"
         )
+        
 
 #        self._gst_cmd = (
 #            f"nvarguscamerasrc sensor-id={self._device} ! "
