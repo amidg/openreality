@@ -27,13 +27,7 @@ sink_1::xpos=1920 sink_1::ypos=0 sink_1::width=1920 sink_1::height=1080 ! \
 
 Dual camera to shm:
 ```
-gst-launch-1.0 \
-nvarguscamerasrc sensor_id=0 ! 'video/x-raw(memory:NVMM),width=1920,height=1080,framerate=30/1' ! nvvidconv flip-method=0 ! 'video/x-raw(memory:NVMM),width=1920, height=1080, format=RGBA' ! comp.sink_0 \
-nvarguscamerasrc sensor_id=1 ! 'video/x-raw(memory:NVMM),width=1920,height=1080,framerate=30/1' ! nvvidconv flip-method=0 ! 'video/x-raw(memory:NVMM),width=1920, height=1080, format=RGBA' ! comp.sink_1 \
-nvcompositor name=comp \
-sink_0::xpos=0 sink_0::ypos=0 sink_0::width=1920 sink_0::height=1080 \
-sink_1::xpos=1920 sink_1::ypos=0 sink_1::width=1920 sink_1::height=1080 ! \
-'video/x-raw(memory:NVMM),format=RGBA' ! nvvidconv ! 'video/x-raw,format=BGRx' ! videoconvert ! 'video/x-raw,format=BGR' ! shmsink socket-path=/dev/shm/camera wait-for-connection=false shm-size=20000000
+
 ```
 
 Sample SHMSink write and SHMSrc read:
@@ -43,6 +37,33 @@ gst-launch-1.0 videotestsrc ! x264enc ! shmsink socket-path=/dev/shm/foo sync=tr
 gst-launch-1.0 shmsrc socket-path=/dev/shm/foo ! h264parse ! avdec_h264 ! videoconvert ! ximagesink
 ```
 
+Write single camera to shmsink:
+```
+gst-launch-1.0 nvarguscamerasrc sensor-id=0 silent=false ! 'video/x-raw(memory:NVMM), width=(int)1920, height=(int)1080, format=(string)NV12, framerate=(fraction)30/1' ! nvvidconv ! 'video/x-raw,width=1920,height=1080,format=BGRx' ! videoconvert ! 'video/x-raw,width=1920,height=1080,format=BGR' ! shmsink socket-path=/dev/shm/foo sync=false wait-for-connection=false shm-size=20000000
+```
+
+Write dual camera to shmsink:
+```
+gst-launch-1.0 \
+nvcompositor name=comp \
+sink_0::xpos=0 sink_0::ypos=0 sink_0::width=1920 sink_0::height=1080 \
+sink_1::xpos=1920 sink_1::ypos=0 sink_1::width=1920 sink_1::height=1080 ! \
+'video/x-raw(memory:NVMM),format=RGBA' ! nvvidconv ! 'video/x-raw,format=BGRx' ! videoconvert ! 'video/x-raw,format=BGR' ! shmsink socket-path=/dev/shm/foo wait-for-connection=false shm-size=20000000 \
+nvarguscamerasrc sensor_id=0 ! 'video/x-raw(memory:NVMM),width=1920,height=1080,framerate=30/1' ! nvvidconv flip-method=0 ! 'video/x-raw(memory:NVMM),width=1920, height=1080, format=RGBA' ! comp.sink_0 \
+nvarguscamerasrc sensor_id=1 ! 'video/x-raw(memory:NVMM),width=1920,height=1080,framerate=30/1' ! nvvidconv flip-method=0 ! 'video/x-raw(memory:NVMM),width=1920, height=1080, format=RGBA' ! comp.sink_1
+```
+
+Write dual camera to appsink:
+```
+gst-launch-1.0 \
+nvcompositor name=comp \
+sink_0::xpos=0 sink_0::ypos=0 sink_0::width=1920 sink_0::height=1080 \
+sink_1::xpos=1920 sink_1::ypos=0 sink_1::width=1920 sink_1::height=1080 ! \
+'video/x-raw(memory:NVMM),format=RGBA' ! nvvidconv ! 'video/x-raw,format=BGRx' ! videoconvert ! 'video/x-raw,format=BGR' ! appsink max-buffers=1 drop=true  \
+nvarguscamerasrc sensor_id=0 ! 'video/x-raw(memory:NVMM),width=1920,height=1080,framerate=30/1' ! nvvidconv flip-method=0 ! 'video/x-raw(memory:NVMM),width=1920, height=1080, format=RGBA' ! comp.sink_0 \
+nvarguscamerasrc sensor_id=1 ! 'video/x-raw(memory:NVMM),width=1920,height=1080,framerate=30/1' ! nvvidconv flip-method=0 ! 'video/x-raw(memory:NVMM),width=1920, height=1080, format=RGBA' ! comp.sink_1
+```
+
 SHMSink and SHMSrc using real camera and nvarguscamerasrc:
 Raw Video:
 ```
@@ -50,7 +71,7 @@ gst-launch-1.0 nvarguscamerasrc sensor-id=0 silent=false ! 'video/x-raw(memory:N
 
 gst-launch-1.0 nvarguscamerasrc sensor-id=0 silent=false ! 'video/x-raw(memory:NVMM), width=(int)1920, height=(int)1080, format=(string)NV12, framerate=(fraction)30/1' ! nvvidconv ! 'video/x-raw,width=1920,height=1080,format=RGBA' ! shmsink socket-path=/dev/shm/foo sync=false wait-for-connection=false shm-size=20000000
 
-gst-launch-1.0 shmsrc socket-path=/dev/shm/foo ! 'video/x-raw,width=1920,height=1080,format=RGBA' ! nvoverlaysink
+gst-launch-1.0 shmsrc socket-path=/dev/shm/foo ! 'video/x-raw,width=1920,height=1080,framerate=30,format=BGR' ! nveglglessink sync=false
 ```
 
 
