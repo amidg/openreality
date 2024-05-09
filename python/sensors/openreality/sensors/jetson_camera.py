@@ -34,7 +34,7 @@ class Camera():
 
         # start capture
         self._gst_cmd = (
-            f"shmsrc socket-path=/dev/shm/foo ! "
+            f"shmsrc socket-path=/dev/shm/cam_right ! "
             f"video/x-raw, width=1920, height=1080, framerate=30/1, format=BGR ! "
             f"videoconvert ! appsink max-buffers=1 drop=True"
         )
