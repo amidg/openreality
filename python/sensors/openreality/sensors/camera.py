@@ -15,7 +15,7 @@ class Camera():
         path: str, # path to the shared memory object
         resolution: Tuple[int, int],
         crop_area: Tuple[int, int, int, int], # y0,y1,x0,x1
-        fps: float = 30
+        fps: int = 30
     ):
         # camera parameters
         self._shm_dev = path
@@ -35,8 +35,8 @@ class Camera():
         # start capture
         self._gst_cmd = (
             f"shmsrc socket-path={self._shm_dev} ! "
-            f"video/x-raw, format=(string)BGR, framerate={self._fps}/1"
-            f"width={self._resolution[0]}, height={self._resolution[1]} !"
+            f"video/x-raw, format=(string)BGR, framerate=(fraction){self._fps}/1, "
+            f"width=(int){self._resolution[0]}, height=(int){self._resolution[1]} !"
             f"videoconvert ! appsink max-buffers=1 drop=True"
         )
         self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
@@ -64,15 +64,6 @@ class Camera():
     @property
     def fps(self):
         return self._real_fps
-
-    @property
-    def test_frame(self):
-        self._frame = np.full((self._resolution[1], self._resolution[0], 3), np.uint8)
-        self._frame = self._frame[
-            self._crop_area[0]:self._crop_area[1],
-            self._crop_area[2]:self._crop_area[3]
-        ]
-        return self._frame
 
     @property
     def frame(self):
@@ -115,13 +106,16 @@ if __name__ == "__main__":
     cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     # capture
-    while True:
+    while cam_left.opened:
         # get frame
         if cam_left.frame_ready:
             # get frame
-            cv2.imshow("render", cam_left.frame)    
+            frame = cam_left.frame
+            cv2.imshow("render", frame)    
             # show fps
             print(cam_left.fps)
+
+        # break if necessary
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
