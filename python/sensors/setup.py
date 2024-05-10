@@ -9,6 +9,9 @@ setup(
         "numpy==1.19.4",
     ],
     entry_points={
-        "console_scripts": ["demo_camera = openreality.sensors.camera:main"]
+        "console_scripts": [
+            "demo_camera = openreality.sensors.camera:main",
+            "demo_stereo_camera = openreality.sensors.stereo_camera:main",
+        ]
     },
 )

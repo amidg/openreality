@@ -9,16 +9,18 @@ from enum import Enum
     Camera class allows to capture from shm device
     This is system agnostic and can be used for any hardware
 """
-class Camera():
+class StereoCamera():
     def __init__(
         self,
-        device: int, # device, e.g. 0 for /dev/video0
+        device_left: int, # device, e.g. 0 for /dev/video0
+        device_right: int, # device, e.g. 0 for /dev/video0
         resolution: Tuple[int, int],
         crop_area: Tuple[int, int, int, int], # y0,y1,x0,x1
         fps: int = 30
     ):
         # camera parameters
-        self._device = device
+        self._device_left = device_left
+        self._device_right = device_right
         self._resolution = resolution
         self._crop_area = crop_area 
         self._fps = fps
@@ -34,16 +36,25 @@ class Camera():
 
         # start capture
         self._gst_cmd = (
-            f"nvarguscamerasrc sensor-id={self._device} ! "
-            f"video/x-raw(memory:NVMM), "
-            f"width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
+            # compositor
+            f"nvcompositor name=comp "
+            f"sink_0::xpos=0 sink_0::ypos=0 sink_0::width={self._crop_area[1] - self._crop_area[0]} sink_0::height={self._crop_area[3] - self._crop_area[2]} "
+            f"sink_1::xpos={self._crop_area[1] - self._crop_area[0]} sink_1::ypos=0 sink_1::width={self._crop_area[1] - self._crop_area[0]} sink_1::height={self._crop_area[3] - self._crop_area[2]} ! "
+            f"video/x-raw(memory:NVMM),format=RGBA ! nvvidconv ! video/x-raw,format=BGRx ! videoconvert ! video/x-raw,format=BGR ! "
+            # appsink
+            f"appsink max-buffers=1 drop=True "
+            # camera left
+            f"nvarguscamerasrc sensor-id={self._device_left} ! "
+            f"video/x-raw(memory:NVMM), width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
             f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
-            f"nvvidconv flip-method=0 "
-            f"top={self._crop_area[0]} bottom={self._crop_area[1]} left={self._crop_area[2]} right={self._crop_area[3]} ! "
-            f"video/x-raw, format=(string)BGRx, "
-            f"width=(int){self._crop_area[1] - self._crop_area[0]}, height=(int){self._crop_area[3] - self._crop_area[2]} ! "
-            f"videoconvert ! video/x-raw, format=(string)BGR ! "
-            f"appsink max-buffers=1 drop=True"
+            f"nvvidconv flip-method=0 top={self._crop_area[0]} bottom={self._crop_area[1]} left={self._crop_area[2]} right={self._crop_area[3]} ! "
+            f"video/x-raw(memory:NVMM),width={self._crop_area[1] - self._crop_area[0]},height={self._crop_area[3] - self._crop_area[2]}, format=RGBA ! comp.sink_0"
+            # camera right
+            f"nvarguscamerasrc sensor-id={self._device_right} ! "
+            f"video/x-raw(memory:NVMM), width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
+            f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
+            f"nvvidconv flip-method=0 top={self._crop_area[0]} bottom={self._crop_area[1]} left={self._crop_area[2]} right={self._crop_area[3]} ! "
+            f"video/x-raw(memory:NVMM),width={self._crop_area[1] - self._crop_area[0]},height={self._crop_area[3] - self._crop_area[2]}, format=RGBA ! comp.sink_1"
         )
         self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
