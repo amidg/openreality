@@ -18,7 +18,7 @@ class Camera():
         fps: int = 30
     ):
         # camera parameters
-        self._shm_dev = path
+        self._device = device
         self._resolution = resolution
         self._crop_area = crop_area 
         self._fps = fps
