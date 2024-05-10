@@ -10,7 +10,7 @@ import threading
 from enum import Enum, EnumMeta
 
 # openreality
-from openreality.sensors.jetson_camera import Camera
+from openreality.sensors.camera import Camera
 
 class MetaEnum(EnumMeta):
     def __contains__(cls, item):
@@ -57,12 +57,12 @@ class Capture(threading.Thread):
         self._memory = "capture"
 
         # left cam thread
-        self._left_buffer = queue.Queue(maxsize=10)
+        self._left_buffer = queue.Queue(maxsize=50)
         self._left_thread = threading.Thread(target=self._left_capture)
         self._left_thread.start()
 
         # right cam thread
-        self._right_buffer = queue.Queue(maxsize=10)
+        self._right_buffer = queue.Queue(maxsize=50)
         self._right_thread = threading.Thread(target=self._right_capture)
         self._right_thread.start()
         
@@ -114,18 +114,19 @@ class Capture(threading.Thread):
         # stream video to renderer
         left_frame = None
         right_frame = None
-        while True:
+        while self._left_cam.opened and self._right_cam.opened:
+            # read frames if they are ready
             if self._left_cam.frame_ready and self._right_cam.frame_ready:
-                # get frames in somewhat synced manner
-                # TODO: create proper sync mechanism
-                left_frame = self._left_cam.frame
-                right_frame = self._right_cam.frame
+                left_frame = self._left_buffer.get()
+                right_frame = self._right_buffer.get()
+                #left_frame = self._left_cam.frame
+                #right_frame = self._right_cam.frame
 
-                # set rotation
-                if self._rotation is not None:
-                    left_frame = cv2.rotate(left_frame, self._rotation)
-                    right_frame = cv2.rotate(right_frame, self._rotation)
-                
+                ## rotate
+                #if self._rotation is not None:
+                #    left_frame = cv2.rotate(left_frame, self._rotation)
+                #    right_frame = cv2.rotate(right_frame, self._rotation)
+
                 # build rendered frame
                 self._frame = np.hstack(tuple([right_frame, left_frame]))
                 self._frame_buffer.put(self._frame)

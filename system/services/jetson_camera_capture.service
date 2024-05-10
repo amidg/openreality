@@ -1,11 +1,12 @@
 [Unit]
-Description=Automatically start camera capture via single gst session using Nvidia APIs
+Description=Automatically start camera capture via single gst session
 DefaultDependencies=no
 After=network.target
 
 [Service]
 Type=simple
 User=dmitrii
+ExecStartPre=/bin/bash -c "rm -rf /dev/shm/cam_*"
 ExecStart=/usr/bin/gst-launch-1.0 nvarguscamerasrc sensor-id=0 silent=false ! 'video/x-raw(memory:NVMM), width=(int)1920, height=(int)1080, format=(string)NV12, framerate=(fraction)30/1' ! nvvidconv ! 'video/x-raw,width=1920,height=1080,format=BGRx' ! videoconvert ! 'video/x-raw,width=1920,height=1080,format=BGR' ! shmsink socket-path=/dev/shm/cam_left sync=false wait-for-connection=false shm-size=20000000 nvarguscamerasrc sensor-id=1 silent=false ! 'video/x-raw(memory:NVMM), width=(int)1920, height=(int)1080, format=(string)NV12, framerate=(fraction)30/1' ! nvvidconv ! 'video/x-raw,width=1920,height=1080,format=BGRx' ! videoconvert ! 'video/x-raw,width=1920,height=1080,format=BGR' ! shmsink socket-path=/dev/shm/cam_right sync=false wait-for-connection=false shm-size=20000000
 TimeoutStartSec=0
 RemainAfterExit=yes
