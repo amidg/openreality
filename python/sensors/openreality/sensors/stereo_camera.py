@@ -38,8 +38,8 @@ class StereoCamera():
         self._gst_cmd = (
             # compositor
             f"nvcompositor name=comp "
-            f"sink_0::xpos=0 sink_0::ypos=0 sink_0::width={self._crop_area[1] - self._crop_area[0]} sink_0::height={self._crop_area[3] - self._crop_area[2]} "
-            f"sink_1::xpos={self._crop_area[1] - self._crop_area[0]} sink_1::ypos=0 sink_1::width={self._crop_area[1] - self._crop_area[0]} sink_1::height={self._crop_area[3] - self._crop_area[2]} ! "
+            f"sink_0::xpos=0 sink_0::ypos=0 sink_0::width={self._crop_area[3] - self._crop_area[2]} sink_0::height={self._crop_area[1] - self._crop_area[0]} "
+            f"sink_1::xpos={self._crop_area[3] - self._crop_area[2]} sink_1::ypos=0 sink_1::width={self._crop_area[3] - self._crop_area[2]} sink_1::height={self._crop_area[1] - self._crop_area[0]} ! "
             f"video/x-raw(memory:NVMM),format=RGBA ! nvvidconv ! video/x-raw,format=BGRx ! videoconvert ! video/x-raw,format=BGR ! "
             # appsink
             f"appsink max-buffers=1 drop=True "
@@ -48,13 +48,13 @@ class StereoCamera():
             f"video/x-raw(memory:NVMM), width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
             f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
             f"nvvidconv flip-method=0 top={self._crop_area[0]} bottom={self._crop_area[1]} left={self._crop_area[2]} right={self._crop_area[3]} ! "
-            f"video/x-raw(memory:NVMM),width={self._crop_area[1] - self._crop_area[0]},height={self._crop_area[3] - self._crop_area[2]}, format=RGBA ! comp.sink_0"
+            f"video/x-raw(memory:NVMM),width={self._crop_area[3] - self._crop_area[2]},height={self._crop_area[1] - self._crop_area[0]}, format=RGBA ! comp.sink_0"
             # camera right
             f"nvarguscamerasrc sensor-id={self._device_right} ! "
             f"video/x-raw(memory:NVMM), width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
             f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
             f"nvvidconv flip-method=0 top={self._crop_area[0]} bottom={self._crop_area[1]} left={self._crop_area[2]} right={self._crop_area[3]} ! "
-            f"video/x-raw(memory:NVMM),width={self._crop_area[1] - self._crop_area[0]},height={self._crop_area[3] - self._crop_area[2]}, format=RGBA ! comp.sink_1"
+            f"video/x-raw(memory:NVMM),width={self._crop_area[3] - self._crop_area[2]},height={self._crop_area[1] - self._crop_area[0]}, format=RGBA ! comp.sink_1"
         )
         self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
@@ -109,8 +109,9 @@ def main():
     crop_area = (0,1440,0,1280) # y0,y1,x0,x1
     # TODO: make this a configuration
     camera_mode = (3264,1848,28)
-    cam_left = Camera(
-        device=0,
+    cam_left = StereoCamera(
+        device_left=0,
+        device_right=1,
         resolution=(camera_mode[0], camera_mode[1]),
         crop_area=crop_area,
         fps=camera_mode[2]
