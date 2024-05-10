@@ -91,7 +91,7 @@ class Camera():
         return self._frame.nbytes
 
 # demo code to run this separately
-if __name__ == "__main__":
+def main():
     # camera setup
     crop_area = (0,1080,480,1440) # y0,y1,x0,x1
     resolution = (1920,1080)
@@ -121,3 +121,7 @@ if __name__ == "__main__":
 
     cam_left.cap.release()
     cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    main()

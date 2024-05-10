@@ -1,5 +1,6 @@
 import cv2
-import numpy as np
+import cupy as np # cuda based
+#import numpy as np
 import time
 from typing import List, Dict, Tuple, Union
 
@@ -53,18 +54,17 @@ class Capture(threading.Thread):
 
         # data
         self._frame = None
-        self._frame_buffer = queue.Queue() # causes massive delay inside the application that reads it
-        self._memory = "capture"
+        self._frame_buffer = queue.Queue()
 
         # left cam thread
-        self._left_buffer = queue.Queue(maxsize=50)
-        self._left_thread = threading.Thread(target=self._left_capture)
-        self._left_thread.start()
+        #self._left_buffer = queue.Queue(maxsize=50)
+        #self._left_thread = threading.Thread(target=self._left_capture)
+        #self._left_thread.start()
 
-        # right cam thread
-        self._right_buffer = queue.Queue(maxsize=50)
-        self._right_thread = threading.Thread(target=self._right_capture)
-        self._right_thread.start()
+        ## right cam thread
+        #self._right_buffer = queue.Queue(maxsize=50)
+        #self._right_thread = threading.Thread(target=self._right_capture)
+        #self._right_thread.start()
         
 
     @property
@@ -88,7 +88,6 @@ class Capture(threading.Thread):
 
     # camera threads
     def _left_capture(self):
-        frame = None
         while True:
             if self._left_cam.frame_ready:
                 frame = self._left_cam.frame
@@ -97,7 +96,6 @@ class Capture(threading.Thread):
                 self._left_buffer.put(frame)
 
     def _right_capture(self):
-        frame = None
         while True:
             if self._right_cam.frame_ready:
                 frame = self._right_cam.frame
@@ -114,22 +112,23 @@ class Capture(threading.Thread):
         # stream video to renderer
         left_frame = None
         right_frame = None
-        while self._left_cam.opened and self._right_cam.opened:
+        while True:
             # read frames if they are ready
+            #if not self._left_buffer.empty() and self._right_buffer.empty():
             if self._left_cam.frame_ready and self._right_cam.frame_ready:
-                left_frame = self._left_buffer.get()
-                right_frame = self._right_buffer.get()
-                #left_frame = self._left_cam.frame
-                #right_frame = self._right_cam.frame
+                #left_frame = self._left_buffer.get()
+                #right_frame = self._right_buffer.get()
+                left_frame = self._left_cam.frame
+                right_frame = self._right_cam.frame
 
-                ## rotate
-                #if self._rotation is not None:
-                #    left_frame = cv2.rotate(left_frame, self._rotation)
-                #    right_frame = cv2.rotate(right_frame, self._rotation)
+                # rotate
+                if self._rotation is not None:
+                    left_frame = cv2.rotate(left_frame, self._rotation)
+                    right_frame = cv2.rotate(right_frame, self._rotation)
 
                 # build rendered frame
                 self._frame = np.hstack(tuple([right_frame, left_frame]))
-                self._frame_buffer.put(self._frame)
+                #self._frame_buffer.put(self._frame)
 
                 # calculate fps
                 self._ctime = time.time()
