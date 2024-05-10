@@ -1,6 +1,6 @@
 import cv2
-import cupy as np # cuda based
-#import numpy as np
+import cupy as cp
+import numpy as np
 import time
 from typing import List, Dict, Tuple, Union
 
