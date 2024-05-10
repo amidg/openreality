@@ -5,7 +5,6 @@ from typing import List, Dict, Tuple, Union
 
 # multiprocessing
 import multiprocessing
-#from multiprocessing import shared_memory
 import queue
 import threading
 from enum import Enum, EnumMeta
@@ -57,34 +56,16 @@ class Capture(threading.Thread):
         self._frame_buffer = queue.Queue() # causes massive delay inside the application that reads it
         self._memory = "capture"
 
-        # create render buffer from two front cameras
-        #frame_left = self._left_cam.test_frame
-        #frame_right = self._right_cam.test_frame
-        #self._shm = shared_memory.SharedMemory(
-        #    create=True,
-        #    size=(frame_left.nbytes+frame_right.nbytes),
-        #    name=self._memory
-        #)
-
-        #render_shape = tuple([frame_right.shape[0], frame_right.shape[1] + frame_left.shape[1], frame_left.shape[2]])
-        ##render_shape = tuple([frame_right.shape[0] + frame_left.shape[0], frame_left.shape[1], frame_left.shape[2]])
-        ##if self._rotation in [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE]:
-        ##    render_shape = tuple([frame_right.shape[1] + frame_left.shape[1], frame_left.shape[0], frame_left.shape[2]])
-        #self._shm_frame_buffer = np.ndarray(
-        #    render_shape,
-        #    dtype=np.uint8,
-        #    buffer=self._shm.buf
-        #)
-
         # left cam thread
-        #self._left_buffer = queue.Queue(maxsize=10)
-        #self._left_thread = threading.Thread(target=self._left_capture)
-        #self._left_thread.start()
+        self._left_buffer = queue.Queue(maxsize=10)
+        self._left_thread = threading.Thread(target=self._left_capture)
+        self._left_thread.start()
 
-        ## right cam thread
-        #self._right_buffer = queue.Queue(maxsize=10)
-        #self._right_thread = threading.Thread(target=self._right_capture)
-        #self._right_thread.start()
+        # right cam thread
+        self._right_buffer = queue.Queue(maxsize=10)
+        self._right_thread = threading.Thread(target=self._right_capture)
+        self._right_thread.start()
+        
 
     @property
     def frame(self):
@@ -145,15 +126,9 @@ class Capture(threading.Thread):
                     left_frame = cv2.rotate(left_frame, self._rotation)
                     right_frame = cv2.rotate(right_frame, self._rotation)
                 
-            # if buffer is empty, we need to wait until there are frames to use
-            #if self._left_buffer.empty() or self._right_buffer.empty():
-            #    continue
-
                 # build rendered frame
                 self._frame = np.hstack(tuple([right_frame, left_frame]))
-                #self._frame = np.hstack(tuple([self._right_buffer.get(), self._left_buffer.get()]))
-                #self._frame_buffer.put(self._frame)
-                #np.copyto(self._shm_frame_buffer, self._frame)
+                self._frame_buffer.put(self._frame)
 
                 # calculate fps
                 self._ctime = time.time()
@@ -162,19 +137,19 @@ class Capture(threading.Thread):
                 print(f"FPS Capture / Left / Right: {self._fps} / {self._left_cam.fps} / {self._right_cam.fps}")
 
             # empty queue to avoid RAM overflow
-            #if self._frame_buffer.qsize() > 100:
-            #    self._flush_buffer()
+            if self._frame_buffer.qsize() > 100:
+                self._flush_buffer()
         
 # demo code to run this separately
 if __name__ == "__main__":
     # start create list of cameras
     crop_area = (0,1080,480,1440)
     resolution = (1920, 1080)
-    cam_left = Camera(device=0, resolution=resolution, crop_area=crop_area)
-    cam_right = Camera(device=1, resolution=resolution, crop_area=crop_area)
+    cam_left = Camera(path="/dev/shm/cam_left", resolution=resolution, crop_area=crop_area)
+    cam_right = Camera(path="/dev/shm/cam_right", resolution=resolution, crop_area=crop_area)
     cameras = [cam_left, cam_right]
 
     # create capture session
     # There is no need to start cameras one by one because when object is created, capture is automatically started
-    capture = Capture(cameras=cameras, rotation=CameraRotation.ROTATE_180)
+    capture = Capture(cameras=cameras)
     capture.start()
