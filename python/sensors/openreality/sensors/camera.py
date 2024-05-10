@@ -12,7 +12,7 @@ from enum import Enum
 class Camera():
     def __init__(
         self,
-        path: str, # path to the shared memory object
+        device: int, # device, e.g. 0 for /dev/video0
         resolution: Tuple[int, int],
         crop_area: Tuple[int, int, int, int], # y0,y1,x0,x1
         fps: int = 30
@@ -34,10 +34,16 @@ class Camera():
 
         # start capture
         self._gst_cmd = (
-            f"shmsrc socket-path={self._shm_dev} ! "
-            f"video/x-raw, format=(string)BGR, framerate=(fraction){self._fps}/1, "
-            f"width=(int){self._resolution[0]}, height=(int){self._resolution[1]} !"
-            f"videoconvert ! appsink max-buffers=1 drop=True"
+            f"nvarguscamerasrc sensor-id={self._device} ! "
+            f"video/x-raw(memory:NVMM), "
+            f"width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
+            f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
+            f"nvvidconv flip-method=0 "
+            f"top={self._crop_area[0]} bottom={self._crop_area[1]} left={self._crop_area[2]} right={self._crop_area[3]} ! "
+            f"video/x-raw, format=(string)BGRx, "
+            f"width=(int){self._crop_area[1] - self._crop_area[0]}, height=(int){self._crop_area[3] - self._crop_area[2]} ! "
+            f"videoconvert ! video/x-raw, format=(string)BGR ! "
+            f"appsink max-buffers=1 drop=True"
         )
         self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
@@ -69,10 +75,6 @@ class Camera():
     def frame(self):
         # get frame
         ret, self._frame = self._cap.retrieve(0)
-        #self._frame = self._frame[
-        #    self._crop_area[0]:self._crop_area[1],
-        #    self._crop_area[2]:self._crop_area[3]
-        #]
 
         # calculate fps
         self._ctime = time.time()
@@ -94,9 +96,9 @@ class Camera():
 def main():
     # camera setup
     crop_area = (0,1440,0,1280) # y0,y1,x0,x1
-    resolution = (1280,1440)
+    resolution = (3264,1848)
     cam_left = Camera(
-        path="/dev/shm/cam_left",
+        device=0,
         resolution=resolution,
         crop_area=crop_area
     )
