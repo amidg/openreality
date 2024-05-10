@@ -69,10 +69,10 @@ class Camera():
     def frame(self):
         # get frame
         ret, self._frame = self._cap.retrieve(0)
-        self._frame = self._frame[
-            self._crop_area[0]:self._crop_area[1],
-            self._crop_area[2]:self._crop_area[3]
-        ]
+        #self._frame = self._frame[
+        #    self._crop_area[0]:self._crop_area[1],
+        #    self._crop_area[2]:self._crop_area[3]
+        #]
 
         # calculate fps
         self._ctime = time.time()
@@ -93,8 +93,8 @@ class Camera():
 # demo code to run this separately
 def main():
     # camera setup
-    crop_area = (0,1080,480,1440) # y0,y1,x0,x1
-    resolution = (1920,1080)
+    crop_area = (0,1440,0,1280) # y0,y1,x0,x1
+    resolution = (1280,1440)
     cam_left = Camera(
         path="/dev/shm/cam_left",
         resolution=resolution,

@@ -1,0 +1,16 @@
+[Unit]
+Description=Automatically start camera capture via single gst session
+DefaultDependencies=no
+After=network.target
+
+[Service]
+Type=simple
+User=dmitrii
+ExecStartPre=/bin/bash -c "rm -rf /dev/shm/cam_*"
+ExecStart=/usr/bin/gst-launch-1.0 nvarguscamerasrc sensor-id=0 silent=false ! 'video/x-raw(memory:NVMM), width=(int)3264, height=(int)1848, format=(string)NV12, framerate=(fraction)28/1' ! nvvidconv top=204 bottom=1644 left=992 right=2272 ! 'video/x-raw,width=1280,height=1440,format=BGRx' ! videoconvert ! 'video/x-raw,format=BGR' ! shmsink socket-path=/dev/shm/cam_left sync=false wait-for-connection=false shm-size=20000000  nvarguscamerasrc sensor-id=1 silent=false ! 'video/x-raw(memory:NVMM), width=(int)3264, height=(int)1848, format=(string)NV12, framerate=(fraction)28/1' ! nvvidconv top=204 bottom=1644 left=992 right=2272 ! 'video/x-raw,width=1280,height=1440,format=BGRx' ! videoconvert ! 'video/x-raw,format=BGR' ! shmsink socket-path=/dev/shm/cam_right sync=false wait-for-connection=false shm-size=20000000
+TimeoutStartSec=0
+RemainAfterExit=yes
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
