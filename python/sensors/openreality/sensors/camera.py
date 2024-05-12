@@ -5,6 +5,8 @@ from typing import Tuple
 import threading
 from enum import Enum
 
+from openreality.sensors.camera_modes import imx219
+
 """
     Camera class allows to capture from shm device
     This is system agnostic and can be used for any hardware
@@ -97,7 +99,7 @@ def main():
     # camera setup
     crop_area = (0,1440,0,1280) # y0,y1,x0,x1
     # TODO: make this a configuration
-    camera_mode = (3264,1848,28)
+    camera_mode = imx219[1].parameters #(3264,1848,28)
     cam_left = Camera(
         device=0,
         resolution=(camera_mode[0], camera_mode[1]),

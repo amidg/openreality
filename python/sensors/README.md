@@ -93,7 +93,7 @@ gst-launch-1.0 \
 nvcompositor name=comp \
 sink_0::xpos=0 sink_0::ypos=0 sink_0::width=1280 sink_0::height=1440 \
 sink_1::xpos=1280 sink_1::ypos=0 sink_1::width=1280 sink_1::height=1440 ! \
-'video/x-raw(memory:NVMM),format=RGBA' ! nvvidconv ! 'video/x-raw,format=BGRx' ! videoconvert ! 'video/x-raw,format=BGR' ! nv3dsink \
+'video/x-raw(memory:NVMM),format=RGBA' ! nvvidconv ! 'video/x-raw,format=BGRx' ! videoconvert ! 'video/x-raw,format=BGR' ! nveglglessink sync=false \
 nvarguscamerasrc sensor-id=0 silent=false ! 'video/x-raw(memory:NVMM), width=(int)3264, height=(int)1848, format=(string)NV12, framerate=(fraction)28/1' ! nvvidconv top=204 bottom=1644 left=992 right=2272 ! 'video/x-raw(memory:NVMM),width=1280,height=1440, format=RGBA' ! comp.sink_0 \
 nvarguscamerasrc sensor-id=1 silent=false ! 'video/x-raw(memory:NVMM), width=(int)3264, height=(int)1848, format=(string)NV12, framerate=(fraction)28/1' ! nvvidconv top=204 bottom=1644 left=992 right=2272 ! 'video/x-raw(memory:NVMM),width=1280,height=1440, format=RGBA' ! comp.sink_1
 ```

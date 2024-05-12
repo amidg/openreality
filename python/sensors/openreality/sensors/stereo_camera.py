@@ -5,6 +5,8 @@ from typing import Tuple
 import threading
 from enum import Enum
 
+from openreality.sensors.camera_modes import imx219
+
 """
     Camera class allows to capture from shm device
     This is system agnostic and can be used for any hardware
@@ -102,11 +104,16 @@ class StereoCamera():
 
 # demo code to run this separately
 def main():
-    # camera setup
-    crop_area = (204,1644,992,2272) # y0,y1,x0,x1
-    # TODO: make this a configuration
-    camera_mode = (3264,1848,28)
-    cam_left = StereoCamera(
+    # TODO: make camera setup a dynamic configuration
+    camera_mode = imx219[1].parameters # width, height, fps
+    crop_area = (
+        # (204,1644,992,2272) # y0,y1,x0,x1 @ 1440p
+        int((camera_mode[1] - 1440)/2), # y0, top
+        int(camera_mode[1] - (camera_mode[1] - 1440)/2), # y1, bottom
+        int((camera_mode[0] - 1280)/2), # x0, left
+        int(camera_mode[0] - (camera_mode[0] - 1280)/2), # x1, right
+    )
+    stereo_camera = StereoCamera(
         device_left=0,
         device_right=1,
         resolution=(camera_mode[0], camera_mode[1]),
@@ -115,17 +122,16 @@ def main():
     )
 
     # window
-    #cv2.namedWindow("render", cv2.WINDOW_NORMAL)
-    #cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cv2.namedWindow("render", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("render", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     # capture
-    while cam_left.opened:
+    while stereo_camera.opened:
         # get frame
-        if cam_left.frame_ready:
+        if stereo_camera.frame_ready:
             # get frame
-            frame = cam_left.frame
-            print(frame.shape)
-            #cv2.imshow("render", frame)    
+            frame = stereo_camera.frame
+            cv2.imshow("render", frame)
             # show fps
             print(cam_left.fps)
 
@@ -133,7 +139,7 @@ def main():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    cam_left.cap.release()
+    stereo_camera.cap.release()
     cv2.destroyAllWindows()
 
 
