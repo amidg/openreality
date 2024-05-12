@@ -42,8 +42,7 @@ class Camera():
             f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
             f"nvvidconv flip-method=0 "
             f"top={self._crop_area[0]} bottom={self._crop_area[1]} left={self._crop_area[2]} right={self._crop_area[3]} ! "
-            f"video/x-raw, format=(string)BGRx, "
-            f"width=(int){self._crop_area[1] - self._crop_area[0]}, height=(int){self._crop_area[3] - self._crop_area[2]} ! "
+            f"video/x-raw, format=(string)BGRx ! "
             f"videoconvert ! video/x-raw, format=(string)BGR ! "
             f"appsink max-buffers=1 drop=True"
         )

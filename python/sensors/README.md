@@ -25,6 +25,17 @@ sink_1::xpos=1920 sink_1::ypos=0 sink_1::width=1920 sink_1::height=1080 ! \
 'video/x-raw(memory:NVMM),format=RGBA' ! nvvidconv ! 'video/x-raw(memory:NVMM),format=(string)NV12' ! nvv4l2h265enc control-rate=0 preset-level=2 maxperf-enable=true profile=1 ! h265parse ! splitmuxsink location=capture-%05d.mkv max-size-bytes=2000000000 muxer=matroskamux -e
 ```
 
+Dual camera to video with trimming. It is very important not to scale video after trimming via nvvidconv. This bug is documented [here](https://forums.developer.nvidia.com/t/nvcompositor-positioning-frames-failure/259274/4): \
+1080p:
+```
+gst-launch-1.0 nvcompositor name=comp sink_0::xpos=0 sink_0::ypos=0 sink_0::width=960 sink_0::height=1080 sink_1::xpos=960 sink_1::ypos=0 sink_1::width=960 sink_1::height=1080 ! 'video/x-raw(memory:NVMM),format=RGBA' ! nvvidconv ! 'video/x-raw(memory:NVMM),format=(string)NV12' ! nvv4l2h265enc control-rate=0 preset-level=2 maxperf-enable=true profile=1 ! h265parse ! splitmuxsink location=/home/dmitrii/Videos/capture-%05d.mkv max-size-bytes=2000000000 muxer=matroskamux -e nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=1920, height=1080, format=(string)NV12, framerate=(fraction)30/1' ! nvvidconv flip-method=0 top=0 bottom=1080 left=480 right=1440 ! 'video/x-raw(memory:NVMM),format=RGBA' ! comp.sink_0 nvarguscamerasrc sensor-id=1 ! 'video/x-raw(memory:NVMM), width=1920, height=1080, format=(string)NV12, framerate=(fraction)30/1' ! nvvidconv flip-method=0 top=0 bottom=1080 left=480 right=1440 ! 'video/x-raw(memory:NVMM),format=RGBA' ! comp.sink_1
+```
+
+1440p:
+```
+gst-launch-1.0 nvcompositor name=comp sink_0::xpos=0 sink_0::ypos=0 sink_0::width=1280 sink_0::height=1440 sink_1::xpos=1280 sink_1::ypos=0 sink_1::width=1280 sink_1::height=1440 ! 'video/x-raw(memory:NVMM),format=RGBA' ! nvvidconv ! 'video/x-raw(memory:NVMM),format=(string)NV12' ! nvv4l2h265enc control-rate=0 preset-level=2 maxperf-enable=true profile=1 ! h265parse ! splitmuxsink location=/home/dmitrii/Videos/capture-%05d.mkv max-size-bytes=2000000000 muxer=matroskamux -e nvarguscamerasrc sensor-id=0 ! 'video/x-raw(memory:NVMM), width=(int)3264, height=(int)1848, format=(string)NV12, framerate=(fraction)28/1' ! nvvidconv flip-method=0 top=204 bottom=1644 left=992 right=2272 ! 'video/x-raw(memory:NVMM),format=RGBA' ! comp.sink_0 nvarguscamerasrc sensor-id=1 ! 'video/x-raw(memory:NVMM), width=3264, height=1848, format=(string)NV12, framerate=(fraction)28/1' ! nvvidconv flip-method=0 top=204 bottom=1644 left=992 right=2272 ! 'video/x-raw(memory:NVMM),format=RGBA' ! comp.sink_1
+```
+
 Sample SHMSink write and SHMSrc read:
 `/dev/shm` is used because it resides in RAM via tmpfs ramdisk (allowed since kernel 2.6) while /tmp is on the storage itself.
 ```

@@ -1,3 +1,5 @@
+from typing import Tuple
+
 """
     This class can be universally used to create capture parameters
 """

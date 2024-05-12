@@ -48,13 +48,13 @@ class StereoCamera():
             f"video/x-raw(memory:NVMM), width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
             f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
             f"nvvidconv flip-method=0 top=(int){self._crop_area[0]} bottom=(int){self._crop_area[1]} left=(int){self._crop_area[2]} right=(int){self._crop_area[3]} ! "
-            f"video/x-raw(memory:NVMM),width=(int){self._crop_area[3] - self._crop_area[2]},height=(int){self._crop_area[1] - self._crop_area[0]}, format=RGBA ! comp.sink_0 "
+            f"video/x-raw(memory:NVMM), format=RGBA ! comp.sink_0 "
             # camera right
             f"nvarguscamerasrc sensor-id={self._device_right} ! "
             f"video/x-raw(memory:NVMM), width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
             f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
             f"nvvidconv flip-method=0 top=(int){self._crop_area[0]} bottom=(int){self._crop_area[1]} left=(int){self._crop_area[2]} right=(int){self._crop_area[3]} ! "
-            f"video/x-raw(memory:NVMM),width=(int){self._crop_area[3] - self._crop_area[2]},height=(int){self._crop_area[1] - self._crop_area[0]}, format=RGBA ! comp.sink_1 "
+            f"video/x-raw(memory:NVMM), format=RGBA ! comp.sink_1 "
         )
         print(self._gst_cmd)
         self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
@@ -133,7 +133,7 @@ def main():
             frame = stereo_camera.frame
             cv2.imshow("render", frame)
             # show fps
-            print(cam_left.fps)
+            print(stereo_camera.fps)
 
         # break if necessary
         if cv2.waitKey(1) & 0xFF == ord('q'):
