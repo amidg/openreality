@@ -5,7 +5,7 @@ from typing import Tuple
 import threading
 from enum import Enum
 
-from openreality.sensors.camera_modes import imx219
+from openreality.sensors.cameras.imx219 import imx219
 
 """
     Camera class allows to capture from shm device
