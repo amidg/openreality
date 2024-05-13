@@ -1,4 +1,4 @@
-from openreality.sensors.camera_modes import CaptureMode
+from .camera_modes import CaptureMode
 
 """
     IMX219 camera parameters.
