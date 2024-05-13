@@ -2,7 +2,11 @@ from setuptools import setup
 
 setup(
     name="openreality.sensors",
-    packages=["openreality.sensors"],
+    packages=[
+        "openreality.sensors",
+        "openreality.sensors.accel",
+        "openreality.sensors.cameras"
+    ],
     version="0.0.1",
     install_requires=[
         "opencv-contrib-python==4.9.0.80+openreality",
