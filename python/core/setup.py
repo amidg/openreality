@@ -8,9 +8,10 @@ setup(
         "opencv-contrib-python==4.9.0.80+openreality",
         "numpy==1.19.4",
         "pyzmq",
-        "cupy"
     ],
     entry_points={
-        "console_scripts": ["demo_camera = openreality.core.capture:main"]
+        "console_scripts": [
+            "openreality_core_app = openreality.core.capture:main"
+        ]
     },
 )
