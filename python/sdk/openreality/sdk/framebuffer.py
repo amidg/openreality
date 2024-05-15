@@ -37,7 +37,7 @@ class RingBuffer():
             self._memmap[:] = self._buffer.popleft()[:]
         except IndexError:
             # TODO: implment logger
-            print("ring buiffer is empty")
+            print("ring buffer is empty")
         # if buffer is full it will erase some elements
         # this adds to the right, so we can always read element 0
         self._buffer.append(item)

@@ -32,41 +32,33 @@ stereo_camera = StereoCamera(
 
 # buffer
 from openreality.sdk.framebuffer import RingBuffer
-buffer = RingBuffer(memmap = "/dev/shm/camera")
+ring_buffer = RingBuffer(memmap = "/dev/shm/camera")
 fps = 0
 
-def read_camera():
-    while stereo_camera.opened:
-        if stereo_camera.frame_ready:
-            buffer.add(stereo_camera.frame)
-
-def read_framebuffer():
+while True:
+    # vars
     ctime = 0
     ptime = 0
-    global fps
-    while True:
-        # read buffer
-        frame = buffer.last_frame
 
-        # calculate fps
-        ctime = time.time()
-        fps = 1/(ctime-ptime)
-        ptime = ctime
+    # check for 180 frames ~ 1 min
+    frame = 0
+    while stereo_camera.opened:
+        # read camera
+        if stereo_camera.frame_ready:
+            ring_buffer.add(stereo_camera.frame)
+            frame = frame + 1
+        # read camera from buffer
+        img = ring_buffer.last_frame
+        if img.size > 0:
+            # calculate fps
+            ctime = time.time()
+            fps = 1/(ctime-ptime)
+            ptime = ctime
+            print(f"Frame {frame}: Cam FPS {stereo_camera.fps} VS buffer fps {fps}")
+        if frame == 180:
+            break
+    break
 
-
-# camera thread
-cam_thread = threading.Thread(target=read_camera)
-cam_thread.start()
-framebuffer_thread = threading.Thread(target=read_framebuffer)
-framebuffer_thread.start()
-
-# check for 180 frames ~ 1 min
-for i in range(180):
-    print(f"Frame {i}: Cam FPS {stereo_camera.fps} VS buffer fps {fps}")
-
-# when all threads end
-cam_thread.stop()
-cam_thread.join()
-framebuffer_thread.stop()
-framebuffer_thread.join()
+# save last frame
+cv2.imwrite("/home/dmitrii/Pictures/buffer.png", img)
 stereo_camera.cap.release()
