@@ -3,11 +3,11 @@ import numpy as np
 from typing import Tuple
 
 """
-    This class creates the RingBuffer in Python memory + memmap in numpy for other processes.
+    This class creates the frame buffer in Python memory + memmap in numpy for other processes.
     add() adds frame to the ring buffer, however it won't be immediately available
     last_frame retrieves frame from the memory in RAM to be used in other process
 """
-class RingBuffer():
+class FrameBuffer():
     def __init__(
         self,
         # ring buffer is assumed to have a shared memory storage

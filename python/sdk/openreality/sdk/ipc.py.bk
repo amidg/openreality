@@ -1,0 +1,131 @@
+import zmq
+from enum import Enum
+import threading
+import json
+from typing import Dict
+import collections
+
+"""
+    IPC class provides PyZMQ based implementation of the Unix Sockets.
+    Exchange messages with OpenReality components.
+    Sockets should be placed to the /var/run in according to Linux spec:
+    https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s15.html
+    However, because this code runs in user space, for now sockets are placed in /tmp
+"""
+class Socket:
+    # Enum
+    class SocketType(Enum):
+        CLIENT = 0
+        SERVER = 1
+
+    """
+        Main Socket code
+    """
+    def __init__(self, name: str, server: bool = False):
+        self._socket_name = name
+        self._context = zmq.Context()
+        self._socket = self._context.socket(zmq.REP if server else zmq.REQ)
+        self._type = self.SocketType.CLIENT
+        if server:
+            self._socket.bind(f"ipc:///tmp/{self._socket_name}")
+            self._type = self.SocketType.SERVER
+        else:
+            self._socket.connect(f"ipc:///tmp/{self._socket_name}")
+
+    @property
+    def name(self):
+        return self._socket_name
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def socket(self):
+        return self._socket
+
+"""
+    Thread based class that allows for external code to interact with the socket server
+    without blocking other code
+"""
+class SocketServer(threading.Thread):
+    def __init__(self, name: str, buffer_size: int = 100):
+        super().__init__()
+        self._stop_cmd = threading.Event()
+
+        # name
+        self._socket_name = name
+
+        # socket server with data
+        self._server = Socket(name=self._socket_name, server=True)
+        self._msg: Dict[str,str] = {} # topic/client: message
+        self._msg_buffer = collections.deque(maxlen=buffer_size)
+
+        # reply mechanism
+        #self._reply_server = Socket(name=self._socket_name, server=True)
+
+    @property
+    def msg(self):
+        try:
+            msg = self._msg_buffer.popleft() # returns dict object
+            return msg
+        except IndexError:
+            # TODO: needs logger here
+            print("no messages in the queue")
+            return None
+
+    @property
+    def msg_available(self):
+        return len(self._msg_buffer) > 0
+
+    def reply(self, msg: Dict[str, str]):
+        self._reply_server.socket.send_json(msg)
+
+    def run(self):
+        # infinite thread
+        while not self._stop_cmd.is_set():
+            self._msg = self._server.socket.recv_json() # dict
+            self._msg_buffer.append(self._msg)
+
+    def stop(self):
+        self._stop_cmd.set()
+
+"""
+   Thread based client that allows to communicate with server in a fire-and-forget approach.
+"""
+class SocketClient(threading.Thread):
+    def __init__(self, name: str):
+        super().__init__()
+        self._stop_cmd = threading.Event()
+
+        # name
+        self._socket_name = name
+
+        # socket server with data
+        self._client = Socket(name=self._socket_name)
+        self._msg: Dict[str,str] = {}
+        self._msg_available = threading.Event()
+
+    @property
+    def msg(self):
+        self._msg_available.clear()
+        return self._msg
+
+    @property
+    def reply_available(self):
+        return self._msg_available.is_set()
+
+    def send(self, msg: Dict[str,str]):
+        self._client.socket.send_json(msg)
+
+    def run(self):
+        # infinite thread
+        while not self._stop_cmd.is_set():
+            if self._msg_available.is_set():
+                # NOTE: should I block it?
+                continue
+            #self._msg = self._client.socket.recv_json() # dict
+            #self._msg_available.set()
+
+    def stop(self):
+        self._stop_cmd.set()

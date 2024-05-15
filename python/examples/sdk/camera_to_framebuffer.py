@@ -31,8 +31,8 @@ stereo_camera = StereoCamera(
 )
 
 # buffer
-from openreality.sdk.framebuffer import RingBuffer
-ring_buffer = RingBuffer(memmap = "/dev/shm/camera")
+from openreality.sdk.framebuffer import FrameBuffer
+ring_buffer = FrameBuffer(memmap = "/dev/shm/camera")
 
 while True:
     # vars
