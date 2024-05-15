@@ -21,7 +21,7 @@ ptime = 0
 img = None
 
 # check for 900 frames ~ 30 seconds
-for i in range(900):
+for i in range(180):
     img = ring_buffer.last_frame
 
     # read camera from buffer
@@ -31,6 +31,6 @@ for i in range(900):
         fps = 1/(ctime-ptime)
         ptime = ctime
         print(f"Frame {i}: buffer fps {fps}")
+        cv2.imwrite("/home/dmitrii/Pictures/buffer.png", img)
 
 # save last frame
-cv2.imwrite("/home/dmitrii/Pictures/buffer.png", img)
