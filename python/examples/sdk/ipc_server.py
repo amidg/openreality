@@ -1,16 +1,16 @@
-from openreality.sdk.ipc import SocketServer
+from openreality.sdk.ipc import IPCServer
 import time
-
-# server
-server = SocketServer(name="openreality.example.socket")
-server.start()
+import zmq
 
 start_time = time.time()
-while time.time() - start_time < 30: # 30 seconds
-    if server.msg_available:
-        msg = server.msg
-        print(msg)
-        for key, value in msg.items():
-            server.reply({f"server": f"Received {value} from {key}"})
+socket = "openreality.example.socket"
+
+server = IPCServer(socket=socket)
+server.start()
+
+while time.time() - start_time < 45:
+    if server.message_available:
+        print(f"Received Message {server.last_message}")
+
 server.stop()
 server.join()

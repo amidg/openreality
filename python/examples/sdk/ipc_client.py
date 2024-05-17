@@ -1,22 +1,32 @@
-from openreality.sdk.ipc import SocketClient
+from openreality.sdk.ipc import IPCApp
 import time
+import zmq
 
-client = SocketClient(name="openreality.example.socket")
-client.start()
-timeout = False
 start_time = time.time()
+socket = "openreality.example.socket"
+app = IPCApp(target_req_socket=socket)
+app.start()
 
-for i in range(10):
-    msg = {f"{i}": "'hello world'"}
-    client.send(msg)
-    print(f"Sent message: {msg}")
-    while not client.reply_available:
-        if time.time() - start_time > 10:
-            timeout = True
-            break
-    if timeout:
-        break
-    print(client.msg)
-# useless here, just demo
-client.stop()
-client.join()
+# create new socket
+new_socket = "test1.socket"
+try:
+    if app.register_socket(new_socket):
+        print("Registered new socket")
+except ValueError:
+    app.stop()
+    app.join()
+    exit()
+
+while time.time() - start_time < 30:
+    try:
+        app.send_msg(
+            socket=new_socket,
+            topic="Hello",
+            msg="World"
+        )
+    except ValueError as e:
+        print(e)
+    time.sleep(1)
+
+app.stop()
+app.join()
