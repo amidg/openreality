@@ -10,7 +10,7 @@ import collections
     https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s15.html
     However, because this code runs in user space, for now sockets are placed in /tmp
 """
-SOCKET_ROOT = "ipc:///tmp"
+SOCKET_ROOT = "ipc:///tmp" # this is usable on Linux only
 
 # Enum
 class StandardMessages():
