@@ -186,7 +186,7 @@ class IPCApp(threading.Thread):
                 self._is_busy = True
                 # send message
                 msg = {self._msg_topic: self._msg}
-                print(f"Sending message {msg}")
+                print(f"Sending message {msg} to {self._msg_socket}")
                 self._push_sockets[self._msg_socket].send_json(msg)
                 self._events[StandardMessages.SEND_MSG].clear()
 
