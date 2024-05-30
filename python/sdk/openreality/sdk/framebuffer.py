@@ -28,7 +28,7 @@ class FrameBuffer():
     @property
     def last_frame(self):
         # retrieve frame from the memory
-        np.copy_to(self._last_frame, self._memmap)
+        np.copyto(self._last_frame, self._memmap)
         return self._last_frame
         #self._last_frame[:] = self._memmap[:]
         # this works really well but causes other code to fail if they both read and write

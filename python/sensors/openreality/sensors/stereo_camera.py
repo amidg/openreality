@@ -44,8 +44,6 @@ class StereoCamera():
             - desired resolution aspect ratio
             This allows to avoid "zooming" effect of the smartphone camera
         """
-        self._aspect_ratio = (self._target_resolution[0]/2)/self._target_resolution[1]
-        new_height = self._resolution[1]
         new_width = int(self._aspect_ratio*new_height)
         if new_width > self._resolution[0]:
             # technically this might violate the aspect ratio
@@ -83,8 +81,8 @@ class StereoCamera():
             f"sink_1::width={self._crop_area[3] - self._crop_area[2]} "
             f"sink_1::height={self._crop_area[1] - self._crop_area[0]} ! "
             f"video/x-raw(memory:NVMM),format=(string)RGBA ! " # this is format of the incoming frames
-            f"nvvidconv ! width=(int){self._target_resolution[0]},height=(int){self._target_resolution[1]} ! " # scale entire frame using GPU
-            f"nvvidconv ! video/x-raw,format=BGRx ! videoconvert ! video/x-raw,format=BGR ! " # move to CPU memory space
+            f"nvvidconv ! video/x-raw,format=BGRx,width=(int){self._target_resolution[0]},height=(int){self._target_resolution[1]} ! " # scale using GPU
+            f"videoconvert ! video/x-raw,format=BGR ! " # move to CPU memory space
             f"appsink max-buffers=1 drop=True " # capture with Python
             # camera left
             f"nvarguscamerasrc sensor-id={self._device_left} ! "
