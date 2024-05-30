@@ -44,13 +44,13 @@ class StereoCamera():
             - desired resolution aspect ratio
             This allows to avoid "zooming" effect of the smartphone camera
         """
-        aspect_ratio = (self._target_resolution[0]/2)/self._target_resolution[1]
+        self._aspect_ratio = (self._target_resolution[0]/2)/self._target_resolution[1]
         new_height = self._resolution[1]
-        new_width = int(aspect_ratio*new_height)
+        new_width = int(self._aspect_ratio*new_height)
         if new_width > self._resolution[0]:
             # technically this might violate the aspect ratio
             new_width = self._resolution[0]
-            new_height = int(new_width/aspect_ratio)
+            new_height = int(new_width/self._aspect_ratio)
         self._crop_area = ( # y0,y1,x0,x1 (top,bottom,left,right)
             # y0, top
             int((self._resolution[1] - new_height)/2),
@@ -61,8 +61,6 @@ class StereoCamera():
             # x1, right
             int(self._resolution[0] - (self._resolution[0] - new_width)/2),
         )
-        print(apsect_ratio)
-        print(self._crop_area)
 
         # data
         self._frame: np.ndarray = None
@@ -84,7 +82,7 @@ class StereoCamera():
             f"sink_1::xpos={self._crop_area[3] - self._crop_area[2]} sink_1::ypos=0 "
             f"sink_1::width={self._crop_area[3] - self._crop_area[2]} "
             f"sink_1::height={self._crop_area[1] - self._crop_area[0]} ! "
-            f"video/x-raw(memory:NVMM),format=(string)RGBA ! "
+            f"video/x-raw(memory:NVMM),format=(string)RGBA,width=(int){self._target_resolution[0]},height=(int){self._target_resolution[1]} ! "
             f"nvvidconv ! video/x-raw,format=BGRx ! "
             f"videoconvert ! video/x-raw,format=BGR ! appsink max-buffers=1 drop=True "
             # camera left
@@ -93,14 +91,14 @@ class StereoCamera():
             f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
             f"nvvidconv flip-method={self._rotation} "
             f"top=(int){self._crop_area[0]} bottom=(int){self._crop_area[1]} left=(int){self._crop_area[2]} right=(int){self._crop_area[3]} ! "
-            f"video/x-raw(memory:NVMM),format=RGBA,width=(int){self._target_resolution[0]/2},height={self._target_resolution[1]} ! comp.sink_0 "
+            f"video/x-raw(memory:NVMM),format=RGBA ! comp.sink_0 "
             # camera right
             f"nvarguscamerasrc sensor-id={self._device_right} ! "
             f"video/x-raw(memory:NVMM), width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
             f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
             f"nvvidconv flip-method={self._rotation} "
             f"top=(int){self._crop_area[0]} bottom=(int){self._crop_area[1]} left=(int){self._crop_area[2]} right=(int){self._crop_area[3]} ! "
-            f"video/x-raw(memory:NVMM),format=RGBA,width=(int){self._target_resolution[0]/2},height={self._target_resolution[1]} ! comp.sink_1 "
+            f"video/x-raw(memory:NVMM),format=RGBA ! comp.sink_1 "
         )
         self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
@@ -127,6 +125,10 @@ class StereoCamera():
     @property
     def fps(self):
         return self._real_fps
+
+    @property
+    def crop_area(self):
+        return self._crop_area
 
     @property
     def gst_cmd(self):
