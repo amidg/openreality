@@ -75,16 +75,17 @@ class StereoCamera():
         self._gst_cmd = (
             # compositor and appsink
             f"nvcompositor name=comp "
-            f"background-w={self._target_resolution[0]}  background-h={self._target_resolution[1]} "
+            f"background-w={(self._crop_area[3] - self._crop_area[2])*2}  background-h={self._crop_area[1] - self._crop_area[0]} "
             f"sink_0::xpos=0 sink_0::ypos=0 "
             f"sink_0::width={self._crop_area[3] - self._crop_area[2]} "
             f"sink_0::height={self._crop_area[1] - self._crop_area[0]} "
             f"sink_1::xpos={self._crop_area[3] - self._crop_area[2]} sink_1::ypos=0 "
             f"sink_1::width={self._crop_area[3] - self._crop_area[2]} "
             f"sink_1::height={self._crop_area[1] - self._crop_area[0]} ! "
-            f"video/x-raw(memory:NVMM),format=(string)RGBA,width=(int){self._target_resolution[0]},height=(int){self._target_resolution[1]} ! "
-            f"nvvidconv ! video/x-raw,format=BGRx ! "
-            f"videoconvert ! video/x-raw,format=BGR ! appsink max-buffers=1 drop=True "
+            f"video/x-raw(memory:NVMM),format=(string)RGBA ! " # this is format of the incoming frames
+            f"nvvidconv ! width=(int){self._target_resolution[0]},height=(int){self._target_resolution[1]} ! " # scale entire frame using GPU
+            f"nvvidconv ! video/x-raw,format=BGRx ! videoconvert ! video/x-raw,format=BGR ! " # move to CPU memory space
+            f"appsink max-buffers=1 drop=True " # capture with Python
             # camera left
             f"nvarguscamerasrc sensor-id={self._device_left} ! "
             f"video/x-raw(memory:NVMM), width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
