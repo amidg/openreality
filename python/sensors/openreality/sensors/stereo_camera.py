@@ -16,16 +16,51 @@ class StereoCamera():
         self,
         device_left: int, # device, e.g. 0 for /dev/video0
         device_right: int, # device, e.g. 0 for /dev/video0
-        resolution: Tuple[int, int],
-        crop_area: Tuple[int, int, int, int], # y0,y1,x0,x1
-        fps: int = 30
+        config: Tuple[int, int, int], # width, height, fps
+        target_resolution: Tuple[int, int], # width, height 
+        rotation: int = 0 # corresponds to the nvvidconv flip-method
     ):
         # camera parameters
         self._device_left = device_left
         self._device_right = device_right
-        self._resolution = resolution
-        self._crop_area = crop_area 
-        self._fps = fps
+        self._resolution = (config[0], config[1])
+        self._fps = config[2]
+        self._target_resolution = target_resolution
+        """
+            flip-method: video flip methods
+                (0): none             - Identity (no rotation)
+                (1): counterclockwise - Rotate counter-clockwise 90 degrees
+                (2): rotate-180       - Rotate 180 degrees
+                (3): clockwise        - Rotate clockwise 90 degrees
+                (4): horizontal-flip  - Flip horizontally
+                (5): upper-right-diagonal - Flip across upper right/lower left diagonal
+                (6): vertical-flip    - Flip vertically
+                (7): upper-left-diagonal - Flip across upper left/lower right diagonal
+        """
+        self._rotation = rotation
+        """
+            crop_area is auto-determined. It is based on the following:
+            - current camera resolution
+            - desired resolution aspect ratio
+            This allows to avoid "zooming" effect of the smartphone camera
+        """
+        aspect_ratio = (self._target_resolution[0]/2)/self._target_resolution[1]
+        new_height = self._resolution[1]
+        new_width = int(aspect_ratio*new_height)
+        if new_width > self._resolution[0]:
+            # technically this might violate the aspect ratio
+            new_width = self._resolution[0]
+            new_height = int(new_width/aspect_ratio)
+        self._crop_area = ( # y0,y1,x0,x1 (top,bottom,left,right)
+            # y0, top
+            int((self._resolution[1] - new_height)/2),
+            # y1, bottom 
+            int(self._resolution[1] - (self._resolution[1] - new_height)/2),
+            # x0, left
+            int((self._resolution[0] - new_width)/2),
+            # x1, right
+            int(self._resolution[0] - (self._resolution[0] - new_width)/2),
+        )
 
         # data
         self._frame: np.ndarray = None
@@ -54,14 +89,16 @@ class StereoCamera():
             f"nvarguscamerasrc sensor-id={self._device_left} ! "
             f"video/x-raw(memory:NVMM), width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
             f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
-            f"nvvidconv flip-method=0 top=(int){self._crop_area[0]} bottom=(int){self._crop_area[1]} left=(int){self._crop_area[2]} right=(int){self._crop_area[3]} ! "
-            f"video/x-raw(memory:NVMM),format=RGBA ! comp.sink_0 "
+            f"nvvidconv flip-method={self._rotation} "
+            f"top=(int){self._crop_area[0]} bottom=(int){self._crop_area[1]} left=(int){self._crop_area[2]} right=(int){self._crop_area[3]} ! "
+            f"video/x-raw(memory:NVMM),format=RGBA,width=(int){self._target_resolution[0]/2},height={self._target_resolution[1]} ! comp.sink_0 "
             # camera right
             f"nvarguscamerasrc sensor-id={self._device_right} ! "
             f"video/x-raw(memory:NVMM), width=(int){self._resolution[0]}, height=(int){self._resolution[1]}, "
             f"format=(string)NV12, framerate=(fraction){self._fps}/1 ! "
-            f"nvvidconv flip-method=0 top=(int){self._crop_area[0]} bottom=(int){self._crop_area[1]} left=(int){self._crop_area[2]} right=(int){self._crop_area[3]} ! "
-            f"video/x-raw(memory:NVMM),format=RGBA ! comp.sink_1 "
+            f"nvvidconv flip-method={self._rotation} "
+            f"top=(int){self._crop_area[0]} bottom=(int){self._crop_area[1]} left=(int){self._crop_area[2]} right=(int){self._crop_area[3]} ! "
+            f"video/x-raw(memory:NVMM),format=RGBA,width=(int){self._target_resolution[0]/2},height={self._target_resolution[1]} ! comp.sink_1 "
         )
         self._cap = cv2.VideoCapture(self._gst_cmd, cv2.CAP_GSTREAMER)
 
@@ -115,20 +152,13 @@ class StereoCamera():
 # demo code to run this separately
 def main():
     # TODO: make camera setup a dynamic configuration
-    camera_mode = imx219[1].parameters # width, height, fps
-    crop_area = (
-        # (204,1644,992,2272) # y0,y1,x0,x1 @ 1440p
-        int((camera_mode[1] - 1440)/2), # y0, top
-        int(camera_mode[1] - (camera_mode[1] - 1440)/2), # y1, bottom
-        int((camera_mode[0] - 1280)/2), # x0, left
-        int(camera_mode[0] - (camera_mode[0] - 1280)/2), # x1, right
-    )
+    camera_mode = imx219[1].parameters # Tuple(width, height, fps)
     stereo_camera = StereoCamera(
         device_left=0,
         device_right=1,
-        resolution=(camera_mode[0], camera_mode[1]),
-        crop_area=crop_area,
-        fps=camera_mode[2]
+        config=camera_mode, # Tuple(width,height,fps)
+        target_resolution=(2560,1440), # per entire frame, means both eyes next to each other
+        rotation=2 # flip 180
     )
 
     # window
