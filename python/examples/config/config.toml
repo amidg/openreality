@@ -1,0 +1,22 @@
+title = "Example Config"
+
+[system]
+    [system.camera]
+    dev_left = 0
+    dev_right = 1
+    mode = 1 # for the gst
+    rotation = 2 # flip 180
+    framebuffer = "/dev/shm/camera"
+
+    [system.accel]
+    enabled = true
+    polling_hz = 1000
+    
+    [system.screen]
+    target_resolution = [2560,1440] # width, height
+    framebuffer = "/dev/shm/screen"
+
+[render]
+barrel_x = 0.002
+barrel_y = 0.002
+framebuffer = "/dev/shm/render"
