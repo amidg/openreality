@@ -61,6 +61,8 @@ class StereoCamera():
             # x1, right
             int(self._resolution[0] - (self._resolution[0] - new_width)/2),
         )
+        print(apsect_ratio)
+        print(self._crop_area)
 
         # data
         self._frame: np.ndarray = None
@@ -75,7 +77,7 @@ class StereoCamera():
         self._gst_cmd = (
             # compositor and appsink
             f"nvcompositor name=comp "
-            f"background-w=2560  background-h=1440 "
+            f"background-w={self._target_resolution[0]}  background-h={self._target_resolution[1]} "
             f"sink_0::xpos=0 sink_0::ypos=0 "
             f"sink_0::width={self._crop_area[3] - self._crop_area[2]} "
             f"sink_0::height={self._crop_area[1] - self._crop_area[0]} "
