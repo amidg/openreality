@@ -1,5 +1,4 @@
 import zmq
-from enum import Enum
 import threading
 from typing import Dict
 import collections
@@ -12,7 +11,6 @@ import collections
 """
 SOCKET_ROOT = "ipc:///tmp" # this is usable on Linux only
 
-# Enum
 class StandardMessages():
     STOP = "STOP"
     DONE = "DONE"
@@ -79,9 +77,10 @@ class IPCServer(threading.Thread):
                     if StandardMessages.REG_SOCK in msg:
                         # register new socket
                         new_socket = msg[StandardMessages.REG_SOCK]
-                        self._registered_sockets[new_socket] = self._context.socket(zmq.PULL)
-                        self._registered_sockets[new_socket].connect(f"{SOCKET_ROOT}/{new_socket}")
-                        self._poller.register(self._registered_sockets[new_socket], zmq.POLLIN)
+                        if new_socket not in self._registered_sockets:
+                            self._registered_sockets[new_socket] = self._context.socket(zmq.PULL)
+                            self._registered_sockets[new_socket].connect(f"{SOCKET_ROOT}/{new_socket}")
+                            self._poller.register(self._registered_sockets[new_socket], zmq.POLLIN)
                         # reply
                         self._system_socket.send_json(
                             {new_socket: StandardMessages.DONE},
