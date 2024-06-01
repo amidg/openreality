@@ -13,6 +13,7 @@ setup(
         "openreality.sdk",
         # System packages, e.g. mediapipe
         # Default packages that should be included by default
+        # these can probably be removed
         "opencv-contrib-python==4.9.0.80+openreality",
         "numpy==1.19.4",
         "pyzmq"

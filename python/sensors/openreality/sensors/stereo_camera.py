@@ -44,6 +44,8 @@ class StereoCamera():
             - desired resolution aspect ratio
             This allows to avoid "zooming" effect of the smartphone camera
         """
+        self._aspect_ratio = self._target_resolution[0]/self._target_resolution[1]
+        new_height = self._resolution[1]
         new_width = int(self._aspect_ratio*new_height)
         if new_width > self._resolution[0]:
             # technically this might violate the aspect ratio
